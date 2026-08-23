@@ -49,3 +49,9 @@
 
 - [ ] æˆæœ¬æœ€å°åŒ–ï¼ˆAï¼š1.05 å…ƒ/Î¼mÂ³ï¼ŒBï¼š0.05 å…ƒ/Î¼mÂ³ï¼‰ï¼Œçº¦æŸå¯¼é€šæ¦‚ç‡ â‰¥ 90%
 - [ ] æ··åˆå¡«å……ä¼˜åŒ–ï¼Œç»™å‡ºæœ€ä¼˜å¡«å……é‡ä¸æœ€ä½æˆæœ¬
+
+2026-08-23 update: solver fixed; Q2 300 trials/point, Q3 and Q4 rerun. Results: results/q2_probability.json, results/q3_threshold.json, results/q4_mixture_search.json. UTF-8 paper: 02_ÂÛÎÄ/ÂÛÎÄ.tex; compiled 25-page PDF: 02_ÂÛÎÄ/ÂÛÎÄ_new.pdf.
+
+Q2 revised values adopted: 0.1067, 0.0967, 0.1867, 0.3567; paper rebuilt as 25-page 02_ÂÛÎÄ/ÂÛÎÄ_new.pdf.
+
+Six-condition solver update: strict capsule distance, finite box intersection, physical X electrodes, no XYZ wrap, common random prefixes, Q2 2000 trials/point completed.

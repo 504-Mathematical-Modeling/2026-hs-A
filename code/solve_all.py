@@ -1,4 +1,4 @@
-"""Reproducible solver for 2026 Huashu Cup A.
+﻿"""Reproducible solver for 2026 Huashu Cup A.
 
 The script uses periodic minimum-image geometry and union-find connectivity.
 Run from the project root: python code/solve_all.py --mode all
@@ -17,6 +17,8 @@ import openpyxl
 L = 10000.0
 HALF = L / 2
 D0 = 1.8
+AXIS_CONTACT = False
+EFFECTIVE_RADIUS_FACTOR = 1.0
 RA = 30.0
 HA = 5000.0
 RB = 200.0
@@ -100,12 +102,51 @@ def segment_segment_distances(a0: np.ndarray, a1: np.ndarray,
     return np.linalg.norm(w + s[:, None] * u - t[:, None] * v, axis=1)
 
 
-def line_face_distance(p0, p1, face: float) -> float:
-    # Distance from a segment to a plane perpendicular to X.
-    x0, x1 = p0[0], p1[0]
-    if (x0 - face) * (x1 - face) <= 0:
-        return 0.0
-    return min(abs(x0 - face), abs(x1 - face))
+def periodic_line_face_distance(p0: np.ndarray, p1: np.ndarray, face: float) -> float:
+    """Distance from the *wrapped portions* of a segment to an X face.
+
+    A segment wholly inside the cell is not duplicated.  Only intervals that
+    actually leave the cell are translated by one box length, as prescribed
+    by the statement's boundary-truncation rule.
+    """
+    x0, x1 = float(p0[0]), float(p1[0])
+    cuts = [0.0, 1.0]
+    if x1 != x0:
+        for boundary in (-HALF, HALF):
+            t = (boundary - x0) / (x1 - x0)
+            if 0.0 < t < 1.0:
+                cuts.append(t)
+    cuts = sorted(cuts)
+    best = float("inf")
+    for a, b in zip(cuts[:-1], cuts[1:]):
+        tm = (a + b) / 2
+        xm = x0 + tm * (x1 - x0)
+        shift = -L if xm > HALF else (L if xm < -HALF else 0.0)
+        xa = x0 + a * (x1 - x0) + shift
+        xb = x0 + b * (x1 - x0) + shift
+        if (xa - face) * (xb - face) <= 0:
+            return 0.0
+        best = min(best, abs(xa - face), abs(xb - face))
+    return best
+
+
+def split_physical_segment(p0: np.ndarray, p1: np.ndarray) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Return the finite intersection of a complete segment with the box."""
+    d = p1 - p0
+    lo, hi = 0.0, 1.0
+    for k in range(3):
+        if abs(d[k]) < 1e-15:
+            if p0[k] < -HALF or p0[k] > HALF:
+                return []
+            continue
+        a = (-HALF - p0[k]) / d[k]
+        b = (HALF - p0[k]) / d[k]
+        if a > b:
+            a, b = b, a
+        lo, hi = max(lo, a), min(hi, b)
+        if lo > hi:
+            return []
+    return [(p0 + lo*d, p0 + hi*d)]
 
 
 def build_graph(rods: np.ndarray, spheres: np.ndarray | None = None,
@@ -113,6 +154,13 @@ def build_graph(rods: np.ndarray, spheres: np.ndarray | None = None,
     """Return conductivity and one shortest boundary-to-boundary path."""
     spheres = np.empty((0, 4)) if spheres is None else spheres
     na, nb = len(rods), len(spheres)
+    pieces = []
+    owners = []
+    for i, (a0, a1) in enumerate(rods):
+        for piece in split_physical_segment(a0, a1):
+            pieces.append(piece); owners.append(i)
+    pieces = np.asarray(pieces, dtype=float)
+    owners = np.asarray(owners, dtype=int)
     n = na + nb + 2
     left, right = na + nb, na + nb + 1
     dsu = DSU(n)
@@ -123,37 +171,38 @@ def build_graph(rods: np.ndarray, spheres: np.ndarray | None = None,
         adj[i].append(j)
         adj[j].append(i)
 
-    for i, (a0, a1) in enumerate(rods):
-        if line_face_distance(a0, a1, -HALF) - RA <= d0:
+    for k, (a0, a1) in enumerate(pieces):
+        i = int(owners[k])
+        if min(abs(a0[0] + HALF), abs(a1[0] + HALF)) - RA <= d0:
             link(i, left)
-        if line_face_distance(a0, a1, HALF) - RA <= d0:
+        if min(abs(a0[0] - HALF), abs(a1[0] - HALF)) - RA <= d0:
             link(i, right)
     for j, row in enumerate(spheres):
         c = row[:3]
         r = row[3]
-        if abs(c[0] + HALF) - r <= d0:
+        if min(abs(c[0] + HALF), abs(c[0] + HALF - L), abs(c[0] + HALF + L)) - r <= d0:
             link(na + j, left)
-        if abs(c[0] - HALF) - r <= d0:
+        if min(abs(c[0] - HALF), abs(c[0] - HALF - L), abs(c[0] - HALF + L)) - r <= d0:
             link(na + j, right)
 
-    if na > 1:
-        ii, jj = np.triu_indices(na, 1)
-        a0, a1 = rods[ii, 0], rods[ii, 1]
-        b0, b1 = rods[jj, 0], rods[jj, 1]
-        shift = L * np.round(((b0 + b1) / 2 - (a0 + a1) / 2) / L)
-        dist = segment_segment_distances(a0, a1, b0 - shift, b1 - shift) - 2 * RA
-        for i, j in zip(ii[dist <= d0], jj[dist <= d0]):
+    if len(pieces) > 1:
+        ii, jj = np.triu_indices(len(pieces), 1)
+        valid = owners[ii] != owners[jj]
+        a0, a1 = pieces[ii[valid], 0], pieces[ii[valid], 1]
+        b0, b1 = pieces[jj[valid], 0], pieces[jj[valid], 1]
+        dist = segment_segment_distances(a0, a1, b0, b1) - (0.0 if AXIS_CONTACT else EFFECTIVE_RADIUS_FACTOR * 2 * RA)
+        for i, j in zip(owners[ii[valid]][dist <= d0], owners[jj[valid]][dist <= d0]):
             link(int(i), int(j))
     if na and nb:
-        ii, jj = np.meshgrid(np.arange(na), np.arange(nb), indexing="ij")
-        a0, a1 = rods[ii.ravel(), 0], rods[ii.ravel(), 1]
+        ii, jj = np.meshgrid(np.arange(len(pieces)), np.arange(nb), indexing="ij")
+        a0, a1 = pieces[ii.ravel(), 0], pieces[ii.ravel(), 1]
         c = spheres[jj.ravel(), :3]
         shift = L * np.round(((a0 + a1) / 2 - c) / L)
         dvec = a1 - a0
         t = np.clip(np.einsum("ij,ij->i", c + shift - a0, dvec) /
                      np.einsum("ij,ij->i", dvec, dvec), 0, 1)
         dist = np.linalg.norm(a0 + t[:, None] * dvec - (c + shift), axis=1) - RA - RB
-        for i, j in zip(ii.ravel()[dist <= d0], jj.ravel()[dist <= d0]):
+        for i, j in zip(owners[ii.ravel()[dist <= d0]], jj.ravel()[dist <= d0]):
             link(int(i), na + int(j))
     if nb > 1:
         ii, jj = np.triu_indices(nb, 1)
@@ -227,12 +276,35 @@ def estimate(na: int, nb: int, trials: int, seed: int) -> dict:
             "probability": hits / trials, "wilson95_low": lo, "wilson95_high": hi}
 
 
+def estimate_q2_shared(fracs: list[float], trials: int, seed: int) -> list[dict]:
+    """Estimate Q2 using common random configurations and nested prefixes."""
+    counts = [int(round(f * L**3 / VA)) for f in fracs]
+    max_n = max(counts)
+    hits = np.zeros(len(fracs), dtype=int)
+    rng = np.random.default_rng(seed)
+    for _ in range(trials):
+        rods = random_rods(max_n, rng)
+        for j, n in enumerate(counts):
+            ok, _ = build_graph(rods[:n])
+            hits[j] += int(ok)
+    out = []
+    for frac, n, k in zip(fracs, counts, hits):
+        lo, hi = wilson(int(k), trials)
+        p = float(k / trials)
+        out.append({"fraction": frac, "n_a": n, "n_b": 0,
+                    "trials": trials, "hits": int(k),
+                    "probability": p,
+                    "standard_error": float(np.sqrt(p * (1 - p) / trials)),
+                    "wilson95_low": lo, "wilson95_high": hi})
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["all", "q1", "q2", "q3", "q4"], default="all")
     ap.add_argument("--trials", type=int, default=120)
     ap.add_argument("--seed", type=int, default=20260823)
-    ap.add_argument("--attachment", type=Path, default=Path("00_题目与数据/附件.xlsx"))
+    ap.add_argument("--attachment", type=Path, default=next(Path(".").glob("00_*") ) / "附件.xlsx")
     ap.add_argument("--out", type=Path, default=Path("results"))
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -250,20 +322,18 @@ def main() -> None:
             w = csv.DictWriter(f, fieldnames=rows[0].keys()); w.writeheader(); w.writerows(rows)
         summary["q1"] = rows
 
-    if args.mode in ("all", "q2", "q3"):
+    if args.mode in ("all", "q2"):
         fracs = [0.005, 0.006, 0.007, 0.010]
-        q2 = []
-        for i, frac in enumerate(fracs):
-            n = int(round(frac * L**3 / VA))
-            q2.append({"fraction": frac, **estimate(n, 0, args.trials, args.seed + i)})
+        q2 = estimate_q2_shared(fracs, args.trials, args.seed)
         (args.out / "q2_probability.json").write_text(json.dumps(q2, ensure_ascii=False, indent=2), encoding="utf-8")
         summary["q2"] = q2
         xs = np.array([x["fraction"]*100 for x in q2]); ys = np.array([x["probability"] for x in q2])
         plt.figure(figsize=(5.5, 3.5)); plt.plot(xs, ys, "o-"); plt.axhline(.9, ls="--", color="gray")
-        plt.xlabel("A 体积分数 (%)"); plt.ylabel("导通概率"); plt.tight_layout(); plt.savefig("figures/q2_probability.pdf"); plt.close()
-        grid = np.linspace(.005, .03, 13); q3 = []
+        plt.xlabel("A fraction (%)"); plt.ylabel("conductivity probability"); plt.tight_layout(); plt.savefig("figures/q2_probability.pdf"); plt.close()
+    if args.mode in ("all", "q3"):
+        grid = np.arange(0.005, 0.03001, 0.001); q3 = []
         for i, frac in enumerate(grid):
-            n = int(round(frac * L**3 / VA)); q3.append({"fraction": float(frac), **estimate(n, 0, max(20, args.trials//2), args.seed+100+i)})
+            n = int(round(frac * L**3 / VA)); q3.append({"fraction": float(frac), **estimate(n, 0, args.trials, args.seed+100+i)})
         feasible = [x for x in q3 if x["probability"] >= .9]
         summary["q3"] = feasible[0] if feasible else None
         (args.out / "q3_threshold.json").write_text(json.dumps(q3, ensure_ascii=False, indent=2), encoding="utf-8")

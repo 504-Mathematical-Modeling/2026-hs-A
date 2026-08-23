@@ -5,56 +5,24 @@
     "V_B_nm3": 33510321.638291124,
     "d0_nm": 1.8
   },
-  "q2": [
+  "q1": [
     {
-      "fraction": 0.005,
-      "n_a": 354,
-      "n_b": 0,
-      "trials": 2,
-      "hits": 2,
-      "probability": 1.0,
-      "wilson95_low": 0.34237195288961925,
-      "wilson95_high": 1.0
+      "group": 1,
+      "n_a": 12,
+      "conductive": false,
+      "path_nodes": 0
     },
     {
-      "fraction": 0.006,
-      "n_a": 424,
-      "n_b": 0,
-      "trials": 2,
-      "hits": 2,
-      "probability": 1.0,
-      "wilson95_low": 0.34237195288961925,
-      "wilson95_high": 1.0
+      "group": 2,
+      "n_a": 49,
+      "conductive": false,
+      "path_nodes": 0
     },
     {
-      "fraction": 0.007,
-      "n_a": 495,
-      "n_b": 0,
-      "trials": 2,
-      "hits": 2,
-      "probability": 1.0,
-      "wilson95_low": 0.34237195288961925,
-      "wilson95_high": 1.0
-    },
-    {
-      "fraction": 0.01,
-      "n_a": 707,
-      "n_b": 0,
-      "trials": 2,
-      "hits": 2,
-      "probability": 1.0,
-      "wilson95_low": 0.34237195288961925,
-      "wilson95_high": 1.0
+      "group": 3,
+      "n_a": 535,
+      "conductive": false,
+      "path_nodes": 0
     }
-  ],
-  "q3": {
-    "fraction": 0.005,
-    "n_a": 354,
-    "n_b": 0,
-    "trials": 60,
-    "hits": 55,
-    "probability": 0.9166666666666666,
-    "wilson95_low": 0.8193083153188752,
-    "wilson95_high": 0.9638800759495141
-  }
+  ]
 }

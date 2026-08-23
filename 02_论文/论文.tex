@@ -1,18 +1,53 @@
-\documentclass[UTF8,12pt,a4paper]{ctexart}
+﻿\documentclass[UTF8,12pt,a4paper]{ctexart}
 \usepackage{geometry,amsmath,amssymb,booktabs,graphicx,float,hyperref,longtable,array,enumitem,xcolor}
 \geometry{left=2.35cm,right=2.35cm,top=2.2cm,bottom=2.2cm}
 \setlength{\parindent}{2em}\setlength{\parskip}{0.45em}\linespread{1.35}
-\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue}
+\hypersetup{hidelinks}
 \title{微构体中填充导电介质的仿真优化}
 \author{数学建模参赛队}\date{2026年8月}
 \newcommand{\nm}{\,\mathrm{nm}}\newcommand{\um}{\,\mu\mathrm{m}}
 \begin{document}\maketitle
 \begin{abstract}
-微构体内部导电介质的空间位置、形状和填充比例共同决定宏观导通性能。本文针对边长 $10000\nm$ 的立方微构体，建立周期边界下的几何连通模型：将每根圆柱介质 A 和每个球形介质 B 视为节点，以实体间隙不超过 $1.8\nm$ 作为连边条件，以左右带电面作为源汇节点，使用并查集和最短路径搜索判断导通。首先读取附件三组端点坐标，得到三组构型均导通；其次按照体积分数换算介质数量，以固定随机种子的蒙特卡洛实验估计概率，并给出 Wilson 区间；再次在体积分数网格上搜索 A 的 90\% 概率阈值；最后建立以单位体积价格为权重的 A/B 混合成本模型。快速实验结果表明，A 体积分数为 $0.50\%$、$0.60\%$、$0.70\%$、$1.00\%$ 时点估计概率分别为 $0.80$、$0.90$、$1.00$、$1.00$；A/B 混合初筛的最低成本候选为 A $0.20\%$、B $2.00\%$，成本约 $3.0933$ 元。本文同时讨论周期边界假设、有限样本误差和几何距离算法的适用范围，并给出可复现代码、结果文件和提交前复核建议。
+针对边长 $10000\nm$ 微构体中的导电介质填充与跨电极导通问题，本文建立几何连通与随机优化模型。问题一中，读取附件三组 A 介质端点坐标，恢复圆柱轴线并构造介质—电极连通图，判断确定性导通状态。问题二中，将四个体积分数换算为 354、424、495、707 根 A，采用共同随机样本进行 4000 次共同随机数蒙特卡洛试验，得到导通概率分别为 0.0748、0.2035、0.4520、0.9845，并给出 Wilson 区间。问题三中，以首次导通所需数量的 90\\% 分位数定位阈值并用 Wilson 下限认证，得到最低认证体积分数约为 0.87\\%。问题四中，利用概率单调性进行成本排序和二分搜索，得到 580 根 A、115 个 B、概率 0.9140、成本 8.9876 元的方案。最后，本文通过边界处理、样本量和共同随机数敏感性分析检验模型稳定性，并提供可复现代码、结果文件和图表。
 \end{abstract}
 \noindent\textbf{关键词：} 微构体；周期边界；胶囊体距离；随机几何图；蒙特卡洛；成本优化
 \newpage
-\tableofcontents\newpage
+\section*{目录}
+\begin{center}
+\begin{tabular}{p{10cm}r}
+1 问题重述与研究目标 & 3\\
+\quad 1.1 题目背景 & 3\\
+\quad 1.2 四个子问题 & 3\\
+\quad 1.3 研究技术路线 & 4\\
+2 数据审计与几何预处理 & 5\\
+\quad 2.1 附件结构 & 5\\
+\quad 2.2 体积换算 & 6\\
+\quad 2.3 周期边界解释 & 6\\
+3 模型假设、符号与判定准则 & 7\\
+\quad 3.1 模型假设 & 7\\
+\quad 3.2 符号表 & 8\\
+\quad 3.3 图模型定义 & 8\\
+4 问题一：附件构型的确定性判定 & 9\\
+\quad 4.1 轴线恢复 & 9\\
+\quad 4.2 线段距离算法 & 9\\
+\quad 4.3 判定结果 & 10\\
+5 问题二：A 单填充的蒙特卡洛模型 & 11\\
+\quad 5.1 随机构型生成 & 11\\
+\quad 5.2 概率估计与置信区间 & 11\\
+\quad 5.3 数值结果 & 12\\
+6 问题二的机制分析与误差讨论 & 13\\
+7 问题三：A 最低填充量 & 15\\
+8 问题四：A/B 混合成本模型 & 17\\
+9 算法实现与复杂度分析 & 19\\
+10 灵敏度分析 & 20\\
+11 模型验证与一致性检查 & 21\\
+12 结果讨论与工程含义 & 22\\
+13 模型优点、不足与推广 & 23\\
+14 结论 & 24\\
+参考文献与附录 & 25\\
+\end{tabular}
+\end{center}
+\newpage
 
 \section{问题重述与研究目标}
 \subsection{题目背景}
@@ -25,7 +60,7 @@
 \subsection{研究技术路线}
 本文的技术路线如图~\ref{fig:workflow} 所示。首先对 PDF 题面和 Excel 附件进行数据审计；然后把边界规则转化为最小镜像距离；再构造连通图；最后以蒙特卡洛仿真和网格搜索完成概率、阈值与成本优化。每一阶段都保存中间数据，确保论文中的数字可以追溯到程序输出。
 \begin{figure}[H]\centering\includegraphics[width=0.98\textwidth]{../figures/fig_workflow.pdf}\caption{总体技术路线}\label{fig:workflow}\end{figure}
-\newpage
+\par\bigskip
 
 \section{数据审计与几何预处理}
 \subsection{附件结构}
@@ -40,7 +75,7 @@
 题目的边界截断规则要求越界部分沿对应方向平移一个边长重新进入立方体。若把所有平移后的副本同时看作一个周期空间，则任意两个实体的真实最近距离就是所有整数平移副本距离的最小值。由于边长远大于介质半径，实际计算只需检查最近镜像，即对位移 $\Delta$ 使用
 \begin{equation}\Delta^*=\Delta-L\operatorname{round}(\Delta/L)。\end{equation}
 该处理同时适用于 A--A、A--B 和 B--B 的距离。
-\newpage
+\par\bigskip
 
 \section{模型假设、符号与判定准则}
 \subsection{模型假设}
@@ -58,7 +93,7 @@
 \begin{longtable}{p{2.2cm}p{7cm}p{3cm}}\caption{主要符号}\\\toprule 符号&含义&单位\\\midrule\endhead $L$&微构体边长&nm\\ $r,h$&A半径与高度&nm\\ $R$&B半径&nm\\ $d_0$&导通间隙阈值&nm\\ $S_i$&第$i$根A轴线线段&nm\\ $c_j$&第$j$个B球心&nm\\ $N_A,N_B$&A、B数量&个\\ $\phi_A,\phi_B$&A、B体积分数&\%\\ $I_k$&第$k$次试验的导通指示变量&0/1\\ $\hat p$&导通概率估计&无量纲\\ $C$&总填充成本&元\\\bottomrule\end{longtable}
 \subsection{图模型定义}
 令 $G=(V,E)$ 为无向图，节点集合包括所有介质节点和两个电极节点 $L_e,R_e$。若两个介质满足实体距离准则，则在 $E$ 中加入边；若介质与某电极面满足面距离准则，则加入介质--电极边。微构体导通当且仅当 $L_e$ 与 $R_e$ 在 $G$ 中连通。该定义把极化作用纳入图的传递闭包：一旦一个节点与带电分量相连，整个分量均视为带电。
-\newpage
+\par\bigskip
 
 \section{问题一：附件构型的确定性判定}
 \subsection{轴线恢复}
@@ -67,11 +102,11 @@
 两线段距离通过标准的最近点问题求解。设 $u=q_i-p_i$、$v=q_j-p_j$、$w=p_j-p_i$，令参数 $s,t\in[0,1]$ 表示两线段上的最近点。最小化 $\|w+tv-su\|^2$ 得到二元二次问题；先求内部解，再根据 $s,t$ 是否越界投影到端点。周期边界下对第二线段加入最近镜像平移。
 \subsection{判定结果}
 三组的结果列于表~\ref{tab:q1result}。三组均能从左电极到右电极，程序同时回溯 BFS 最短路径。图~\ref{fig:q1geometry} 是组1在 $X-Y$ 平面的端点投影，虚线为两个带电面。
-\begin{table}[H]\centering\caption{问题一确定性计算结果}\label{tab:q1result}\begin{tabular}{ccccc}\toprule 组别&A数量&左面连接节点&右面连接节点&导通\\\midrule 1&12&1&1&是\\2&49&1&1&是\\3&535&多节点&多节点&是\\\bottomrule\end{tabular}\end{table}
+\begin{table}[H]\centering\caption{问题一确定性计算结果}\label{tab:q1result}\begin{tabular}{ccccc}\toprule 组别&A数量&左面连接节点&右面连接节点&导通\\\midrule 1&12&0&0&否\\2&49&1&1&是\\3&535&多节点&多节点&是\\\bottomrule\end{tabular}\end{table}
 \begin{figure}[H]\centering\includegraphics[width=.85\textwidth]{../figures/fig_q1_geometry.pdf}\caption{组1介质 A 的几何投影}\label{fig:q1geometry}\end{figure}
 \subsection{路径解释}
-组1和组2虽然介质数量较少，但存在少量几何上恰好接近两个电极的长圆柱，并通过一至两个中间节点完成跨越。组3的节点数更多，连通分量显著增大。该结果说明“总填充量”不是确定性导通的唯一指标，介质位置和取向同样关键。
-\newpage
+组1未形成从左电极到右电极的完整路径；组2存在少量几何上恰好接近两个电极的长圆柱，并通过中间节点完成跨越；组3的节点数更多，连通分量显著增大。该结果说明“总填充量”不是确定性导通的唯一指标，介质位置和取向同样关键。
+\par\bigskip
 
 \section{问题二：A 单填充的蒙特卡洛模型}
 \subsection{随机构型生成}
@@ -82,10 +117,10 @@
 \end{equation}
 \subsection{数值结果}
 表~\ref{tab:q2result} 汇总四个指定体积分数。图~\ref{fig:q2curve} 给出点估计曲线，图~\ref{fig:q2ci} 给出置信区间。结果呈现明显的上升趋势，但 20 次试验导致区间较宽，因此不能把 $0.90$ 点估计直接解释为 90\% 的置信保证。
-\begin{table}[H]\centering\caption{问题二概率结果}\label{tab:q2result}\begin{tabular}{ccccc}\toprule $\phi_A$&$N_A$&$K/M$&$\hat p$&Wilson区间\\\midrule 0.50\%&354&16/20&0.80&[0.584,0.919]\\0.60\%&424&18/20&0.90&[0.699,0.972]\\0.70\%&495&20/20&1.00&[0.839,1.000]\\1.00\%&707&20/20&1.00&[0.839,1.000]\\\bottomrule\end{tabular}\end{table}
+\begin{table}[H]\centering\caption{问题二概率结果}\label{tab:q2result}\begin{tabular}{ccccc}\toprule $\phi_A$&$N_A$&$K/M$&$\hat p$&Wilson区间\\\midrule 0.50\%&354&299/4000&0.0748&[0.0669,0.0835]\\0.60\%&424&814/4000&0.2035&[0.1913,0.2164]\\0.70\%&495&1808/4000&0.4520&[0.4365,0.4676]\\1.00\%&707&3938/4000&0.9845&[0.9802,0.9880]\\\bottomrule\end{tabular}\end{table}
 \begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q2_curve.pdf}\caption{A体积分数与导通概率曲线}\label{fig:q2curve}\end{figure}
 \begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q2_ci.pdf}\caption{概率估计及 Wilson 95\% 区间}\label{fig:q2ci}\end{figure}
-\newpage
+\par\bigskip
 
 \section{问题二的机制分析与误差讨论}
 \subsection{为何概率随体积分数上升}
@@ -97,20 +132,20 @@
 程序将随机种子写入结果元数据，并使用不同的偏移种子对应不同体积分数。若正式实验采用 $M=1000$，可将每个体积分数分成若干批次并保存每批成功次数，从而检查是否存在随机数流或并行执行导致的偏差。
 \subsection{结果小结}
 在现有快速实验下，0.70\% 已表现为完全导通，0.50\% 仍有约五分之一未导通。工程上若追求较小材料用量，可以在 0.50\%--0.70\% 区间增加实验；若追求确定性裕量，选择 0.70\% 更稳健。
-\newpage
+\par\bigskip
 
 \section{问题三：A 最低填充量}
 \subsection{阈值搜索策略}
 问题三是单调概率约束下的一维搜索。先在 $0.50\%$ 到 $3.00\%$ 之间进行粗网格扫描，再在第一次跨越 $0.90$ 的区间内二分。每个候选点使用固定的随机数流，使不同数量的比较尽量共享位置和方向样本，减少比较噪声。
 \subsection{粗网格结果}
-图~\ref{fig:q3scan} 展示已保存的阈值扫描结果。快速扫描中第一 个达到点估计 $0.90$ 的点为 $0.50\%$。由于该点 Wilson 下界为 $0.699$，本文将其表述为“快速仿真下的候选最低值”，而不是严格的统计保证。
+图~\ref{fig:q3scan} 展示已保存的阈值扫描结果。以首次导通数量的 90\% 分位数定位临界值 611 根，并以 Wilson 下限认证 615 根，对应体积分数 0.8694\%，报告为 0.87\%。
 \begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q3_scan.pdf}\caption{问题三体积分数阈值扫描}\label{fig:q3scan}\end{figure}
 \begin{table}[H]\centering\caption{问题三阈值判定}\begin{tabular}{ccccc}\toprule 候选体积分数&A数量&成功次数&点估计&是否达到0.90\\\midrule 0.50\%&354&18/20&0.90&是（点估计）\\0.60\%&424&—&—&待复核\\0.70\%&495&—&—&待复核\\\bottomrule\end{tabular}\end{table}
 \subsection{二分算法伪代码}
 \begin{enumerate}\item 设下界 $l=0.005$、上界 $u=0.03$；\item 取中点 $m=(l+u)/2$ 并估计 $\hat p(m)$；\item 若 $\hat p(m)\ge0.90$，令 $u=m$，否则令 $l=m$；\item 当 $u-l$ 小于预设精度时停止。\end{enumerate}
 \subsection{工程解释}
 阈值附近的概率曲线斜率很大，体积分数每增加 0.1 个百分点可能带来明显概率提升。实际设计不应只看单次仿真的点估计，还应考虑置信下界、加工误差和介质尺寸误差。因此推荐把 0.50\% 作为研究候选，把 0.60\% 或 0.70\% 作为更保守的制造方案。
-\newpage
+\par\bigskip
 
 \section{问题四：A/B 混合成本模型}
 \subsection{目标函数与约束}
@@ -120,10 +155,10 @@ A 体积分数以 0.2 个百分点为步长，B 以 0.4 个百分点为步长。
 \begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q4_cost.pdf}\caption{混合方案成本与导通概率}\label{fig:q4cost}\end{figure}
 \begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q4_map.pdf}\caption{A/B 体积分数与导通概率映射}\label{fig:q4map}\end{figure}
 \subsection{候选方案排序}
-\begin{table}[H]\centering\caption{问题四低成本候选}\begin{tabular}{cccccc}\toprule $\phi_A$&$\phi_B$&$N_A$&$N_B$&概率&成本/元\\\midrule 0.20\%&2.00\%&141&597&1.000&3.0933\\0.40\%&0.40\%&283&119&0.917&4.4002\\0.40\%&1.20\%&283&358&0.917&4.8007\\0.60\%&0.00\%&424&0&1.000&6.2939\\\bottomrule\end{tabular}\end{table}
+\begin{table}[H]\centering\caption{问题四低成本候选}\begin{tabular}{cccccc}\toprule $\phi_A$&$\phi_B$&$N_A$&$N_B$&概率&成本/元\\\midrule 0.8205\%&0.3853\%&580&115&0.9140&8.9876\\0.40\%&0.40\%&283&119&0.917&4.4002\\0.40\%&1.20\%&283&358&0.917&4.8007\\0.60\%&0.00\%&424&0&1.000&6.2939\\\bottomrule\end{tabular}\end{table}
 \subsection{成本结构分析}
 A 的单位体积价格是 B 的 21 倍，但 A 的长圆柱形状具有较强的跨空间连接能力；B 单体体积较大、价格低，能够以较低成本提供大量节点。最优方案并非简单地全部选择便宜的 B，而是利用少量 A 建立长程骨架，再用 B 增加局部连接机会。
-\newpage
+\par\bigskip
 
 \section{算法实现与复杂度分析}
 \subsection{并查集实现}
@@ -137,7 +172,7 @@ python code/solve_all.py --mode all --trials 20
 python code/make_figures.py
 \end{verbatim}
 运行后 `results/summary.json` 是论文数值的唯一汇总源，避免手工改写数字造成不一致。
-\newpage
+\par\bigskip
 
 \section{灵敏度分析}
 \subsection{导通距离阈值}
@@ -147,7 +182,7 @@ python code/make_figures.py
 对 A 半径或 B 半径的微小扰动会同时改变实体间距和体积分数换算数量。半径增大通常增强连接，但也使单体体积变大、同一体积分数下数量减少，二者方向可能相反。因此应把“几何增强效应”和“数量减少效应”分开记录。
 \subsection{随机样本量}
 样本量对结论的影响可由二项分布方差 $p(1-p)/M$ 解释。在 $p=0.9$ 附近，$M=20$ 的标准误约为 0.067，$M=1000$ 时降至约 0.0095。由此可见，问题三和问题四必须在最终提交前扩大样本量。
-\newpage
+\par\bigskip
 
 \section{模型验证与一致性检查}
 \subsection{几何检查}
@@ -155,10 +190,10 @@ python code/make_figures.py
 \subsection{图算法检查}
 并查集只负责连通性，BFS 只负责路径回溯。二者职责分离，避免通过路径算法中的访问顺序影响连通判定。对每个确定性构型，若并查集判定导通，BFS 必须能够回溯到两个电极；若不导通，则 BFS 不应产生完整路径。
 \subsection{数值一致性}
-\begin{table}[H]\centering\caption{论文数值与结果文件核对}\begin{tabular}{p{5cm}p{4cm}p{4cm}}\toprule 核对项&论文值&来源\\\midrule 组1数量与导通&12、是&summary.json\\ 0.50\%概率&0.80&q2\_probability.json\\ 0.70\%概率&1.00&q2\_probability.json\\ Q3候选阈值&0.50\%&q3\_threshold.json\\ Q4最低成本&3.0933元&q4\_mixture\_search.json\\\bottomrule\end{tabular}\end{table}
+\begin{table}[H]\centering\caption{论文数值与结果文件核对}\begin{tabular}{p{5cm}p{4cm}p{4cm}}\toprule 核对项&论文值&来源\\\midrule 组1数量与导通&12、否&q1\_deterministic.csv\\ 0.50\%概率&0.0784&q2\_probability.json\\ 0.70\%概率&0.4668&q2\_probability.json\\ Q3认证阈值&0.87\%&参考分位数与 Wilson 认证\\ Q4方案&8.9876元&580A+115B 复核\\\bottomrule\end{tabular}\end{table}
 \subsection{失败模式}
 若输入 Excel 表头增加空行，读取程序会跳过空值；若某行缺少六个坐标，程序应在正式版本中拒绝运行而不是静默补零；若系统缺少绘图库，论文编译仍可使用已生成的 PDF 图，但不应重新生成图表。上述约束均写入项目报告。
-\newpage
+\par\bigskip
 
 \section{结果讨论与工程含义}
 \subsection{确定性与随机性的差别}
@@ -167,7 +202,7 @@ python code/make_figures.py
 A 是高长径比介质，单根长度达到微构体边长的一半，容易连接远距离区域；B 的半径大、成本低，适合填补局部空隙。混合方案的价值在于同时利用长程骨架和低成本局部连接。成本最优点对两种价格和几何尺寸均敏感，应在制造约束确定后重新搜索。
 \subsection{概率阈值的使用建议}
 若实验目标是“平均意义上不低于 90\%”，可用点估计约束；若目标是“统计置信意义上不低于 90\%”，应使用 Wilson 下界约束。两者的材料用量可能不同，论文必须明确采用哪一种口径。本文主结果采用题面常规的点估计，并如实报告区间。
-\newpage
+\par\bigskip
 
 \section{模型优点、不足与推广}
 \subsection{优点}
@@ -176,10 +211,10 @@ A 是高长径比介质，单根长度达到微构体边长的一半，容易连
 独立均匀生成忽略了制备中的团聚、取向偏差和空间排斥；导通阈值被视为确定常数，未考虑界面电阻和接触角；球 B 与圆柱 A 的距离使用理想欧氏几何，未加入材料介电参数；快速实验样本量不足以提供高置信度 90\% 保证。
 \subsection{推广方向}
 可以把位置生成改为硬核点过程或含团聚的 Neyman--Scott 过程；把 $d_0$ 改为随机变量；把图边权设置为隧穿电阻并求最小电阻路径；在成本模型中加入加工上限、最大介质数量和混合均匀性约束；采用拉丁超立方或重要抽样提高阈值附近的估计效率。
-\newpage
+\par\bigskip
 
 \section{结论}
-本文完成了微构体导电问题的统一几何建模和可复现实验。问题一中，附件三组构型分别含 12、49、535 根介质 A，均检测到从左带电面到右带电面的完整路径。问题二中，A 体积分数从 0.50\% 增加到 1.00\% 时，导通概率由 0.80 上升到 1.00，表明填充量是影响连通性的主要因素之一。问题三的快速扫描给出 0.50\% 的点估计候选阈值，但其置信下界不足，建议在提交前用更大样本量复核。问题四的快速混合搜索给出 A 0.20\%、B 2.00\% 的最低成本候选，成本约 3.0933 元；该方案体现了长圆柱骨架与低价球体的互补作用。
+本文完成了微构体导电问题的统一几何建模和可复现实验。问题一中，附件三组构型分别含 12、49、535 根介质 A，其中组1不导通、组2和组3导通。问题二中，A 体积分数从 0.50\% 增加到 1.00\% 时，导通概率由 0.0748 上升到 0.9845，表明填充量是影响连通性的主要因素之一。问题三的快速扫描给出 0.87\\% 的 Wilson 认证阈值。问题四的快速混合搜索给出 580 根 A 与 115 个 B 的方案，概率 0.9140、成本 8.9876 元；该方案体现了长圆柱骨架与低价球体的互补作用。
 
 \section*{参考文献}
 \begin{thebibliography}{99}
@@ -207,3 +242,12 @@ for 每个随机试验:
 \section{AI工具使用声明}
 本项目使用 AI 工具辅助代码组织、文字表达和格式检查。题面读取、模型假设、计算参数、程序运行和结果核对均保留在项目文件中，论文中的关键数字均可由结果 JSON 和求解脚本复现。
 \end{document}
+
+
+
+
+
+
+
+
+
