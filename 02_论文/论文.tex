@@ -307,8 +307,83 @@ A 是高长径比介质，单根长度达到微构体边长的一半，容易连
 \bibitem{periodic} Allen M P, Tildesley D J. Computer Simulation of Liquids[M]. Oxford University Press, 2017.
 \end{thebibliography}
 
-\section*{附录A\quad 结果文件说明}
-\begin{table}[H]\centering\caption{提交目录中的主要文件}\begin{tabular}{p{5cm}p{8cm}}\toprule 文件&用途\\\midrule 01\_代码/solve\_all.py&主求解程序\\ 01\_代码/make\_figures.py&论文图表生成程序\\ 02\_论文/files/summary.json&数值汇总\\ 02\_论文/files/q2\_probability.json&问题二结果\\ 02\_论文/files/q3\_threshold.json&问题三扫描结果\\ 02\_论文/files/q4\_mixture\_search.json&问题四候选结果\\ 02\_论文/figures/*.pdf&论文图表\\\bottomrule\end{tabular}\end{table}
+\section*{附录A\quad 核心算法代码摘录}
+以下摘录 \texttt{01\_代码/solve\_all.py} 中的关键函数，展示并查集连通判定、周期最小镜像距离、线段距离计算与 Wilson 区间估计的实现。
+
+\textbf{（1）并查集（Disjoint Set Union）}
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+class DSU:
+    def __init__(self, n: int):
+        self.p = np.arange(n)
+
+    def find(self, x: int) -> int:
+        while self.p[x] != x:
+            self.p[x] = self.p[self.p[x]]  # 路径压缩
+            x = self.p[x]
+        return x
+
+    def union(self, a: int, b: int) -> None:
+        a, b = self.find(a), self.find(b)
+        if a != b:
+            self.p[b] = a
+\end{lstlisting}
+
+\textbf{（2）周期最小镜像距离}
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+L = 10000.0  # 微构体边长 (nm)
+
+def min_image(x: np.ndarray) -> np.ndarray:
+    """将位移向量映射到最近镜像。"""
+    return x - L * np.round(x / L)
+\end{lstlisting}
+
+\textbf{（3）两线段最短距离}
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+def segment_segment_distance(a0, a1, b0, b1) -> float:
+    """三维线段最近点距离（周期边界由调用方处理）。"""
+    u, v, w = a1 - a0, b1 - b0, b0 - a0
+    aa, c, b = dot(u,u), dot(v,v), dot(u,v)
+    d, e = dot(u,w), dot(v,w)
+    den = aa * c - b * b
+    s = np.clip((b*e - c*d) / den, 0, 1) if den > 1e-15 else 0.0
+    tnom = b * s + e
+    if   tnom < 0:  t = 0.0; s = np.clip(-d/aa, 0, 1)
+    elif tnom > c:  t = 1.0; s = np.clip((b-d)/aa, 0, 1)
+    else:           t = tnom / c
+    return float(np.linalg.norm(w + s*u - t*v))
+\end{lstlisting}
+
+\textbf{（4）Wilson 置信区间}
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson 95% 置信区间下界与上界。"""
+    if n == 0:
+        return 0.0, 0.0
+    p = k / n
+    den = 1 + z*z / n
+    ctr = (p + z*z/(2*n)) / den
+    rad = z * np.sqrt(p*(1-p)/n + z*z/(4*n*n)) / den
+    return max(0.0, ctr - rad), min(1.0, ctr + rad)
+\end{lstlisting}
+
+\textbf{（5）连通图构建与导通判定}
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily]
+def build_graph(rods, spheres=None, d0=1.8):
+    """构造连通图，返回 (是否导通, 最短路径节点列表)。"""
+    dsu = DSU(na + nb + 2)
+    left, right = na + nb, na + nb + 1
+    # 电极连接：介质端点到左/右面距离 <= d0
+    for i, (a0, a1) in enumerate(rods):
+        if min(abs(a0[0]+HALF), abs(a1[0]+HALF)) - RA <= d0:
+            dsu.union(i, left)
+        if min(abs(a0[0]-HALF), abs(a1[0]-HALF)) - RA <= d0:
+            dsu.union(i, right)
+    # 介质间连接：胶囊体距离 <= d0
+    for i, j in pairs:
+        if segment_segment_distance(...) - RA - RB <= d0:
+            dsu.union(i, j)
+    return dsu.find(left) == dsu.find(right), path
+\end{lstlisting}
 \section*{附录B\quad AI工具使用声明}
 本项目使用 AI 工具辅助代码组织、文字表达和格式检查。题面读取、模型假设、计算参数、程序运行和结果核对均保留在项目文件中，论文中的关键数字均可由结果 JSON 和求解脚本复现。
 \end{document}
