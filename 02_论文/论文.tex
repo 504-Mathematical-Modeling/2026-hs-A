@@ -1,551 +1,209 @@
-% !TeX program = latexmk
-% !TeX options = -xelatex -synctex=1 -interaction=nonstopmode -file-line-error -outdir=build "%DOC%"
-% =============================================================================
-% 数学建模竞赛论文通用 LaTeX 模板（完整版）
-% -----------------------------------------------------------------------------
-% 适用：高教社杯国赛 / 华数杯 / MathorCup / 电工杯 / 深圳杯 / 亚太赛 等
-% 编译：xelatex（推荐）或 latexmk -xelatex
-% 字库：fontset=fandol（CTeX 自带，无需额外字体文件）
-% -----------------------------------------------------------------------------
-% 使用说明：
-%   1. 全局搜索 【替换】 字样，按提示替换为你的内容
-%   2. 摘要采用"六段法"：背景+总方法 / Q1 / Q2 / Q3 / Q4 / 总结，每段必须含具体数值结果
-%   3. 图题在下、表题在上；表格一律三线表（无竖线）
-%   4. 2026 国赛新规：AI 使用声明置于参考文献之前
-%   5. 六大题型（优化/预测/评价/分类/统计/机理）通用，配套规范见 ../01_通用写作规范/00_总索引.md
-% =============================================================================
+\documentclass[UTF8,12pt,a4paper]{ctexart}
+\usepackage{geometry,amsmath,amssymb,booktabs,graphicx,float,hyperref,longtable,array,enumitem,xcolor}
+\geometry{left=2.35cm,right=2.35cm,top=2.2cm,bottom=2.2cm}
+\setlength{\parindent}{2em}\setlength{\parskip}{0.45em}\linespread{1.35}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue}
+\title{微构体中填充导电介质的仿真优化}
+\author{数学建模参赛队}\date{2026年8月}
+\newcommand{\nm}{\,\mathrm{nm}}\newcommand{\um}{\,\mu\mathrm{m}}
+\begin{document}\maketitle
+\begin{abstract}
+微构体内部导电介质的空间位置、形状和填充比例共同决定宏观导通性能。本文针对边长 $10000\nm$ 的立方微构体，建立周期边界下的几何连通模型：将每根圆柱介质 A 和每个球形介质 B 视为节点，以实体间隙不超过 $1.8\nm$ 作为连边条件，以左右带电面作为源汇节点，使用并查集和最短路径搜索判断导通。首先读取附件三组端点坐标，得到三组构型均导通；其次按照体积分数换算介质数量，以固定随机种子的蒙特卡洛实验估计概率，并给出 Wilson 区间；再次在体积分数网格上搜索 A 的 90\% 概率阈值；最后建立以单位体积价格为权重的 A/B 混合成本模型。快速实验结果表明，A 体积分数为 $0.50\%$、$0.60\%$、$0.70\%$、$1.00\%$ 时点估计概率分别为 $0.80$、$0.90$、$1.00$、$1.00$；A/B 混合初筛的最低成本候选为 A $0.20\%$、B $2.00\%$，成本约 $3.0933$ 元。本文同时讨论周期边界假设、有限样本误差和几何距离算法的适用范围，并给出可复现代码、结果文件和提交前复核建议。
+\end{abstract}
+\noindent\textbf{关键词：} 微构体；周期边界；胶囊体距离；随机几何图；蒙特卡洛；成本优化
+\newpage
+\tableofcontents\newpage
 
-\documentclass[12pt,a4paper,fontset=fandol]{ctexart}
+\section{问题重述与研究目标}
+\subsection{题目背景}
+导电复合体系通常由导电颗粒、导电纤维或连续相共同承担电荷传输功能。在微观尺度，宏观的“导通”并不要求所有介质相互接触，而只要求存在一条从一个电极到另一个电极的连续或近连续路径。题目将实际材料理想化为边长 $10000\nm$ 的立方体，将两相对表面设为带电面，并规定导电介质之间的间隙阈值为 $1.8\nm$。这种设定把物理过程转化为具有明确几何规则的随机连通问题。
 
-% ============================ 1. 宏包加载 ====================================
-\usepackage{geometry}
-\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
-
-\usepackage{amsmath, amssymb}        % 数学公式与符号
-\usepackage{amsthm}                  % 定理环境（可选）
-\usepackage{booktabs}                % 严格三线表
-\usepackage{multirow}                % 跨行表格
-\usepackage{array}                   % 表格列格式扩展
-\usepackage{makecell}                % 单元格内换行
-\usepackage{graphicx}                % 插入图片
-\usepackage{float}                   % 强制图表位置 [H]
-\usepackage{fancyhdr}                % 自定义页眉页脚
-\usepackage{indentfirst}             % 每段首行缩进
-\usepackage{caption}                 % 图表标题排版
-\usepackage{subcaption}              % 子图排版
-\usepackage{longtable}               % 附录长表格跨页
-\usepackage{listings}                % 代码高亮
-\usepackage{xcolor}                  % 颜色支持
-\usepackage{enumitem}                % 列表间距控制
-\usepackage{hyperref}                % 超链接与目录（最后加载）
-\usepackage{cleveref}                % 智能交叉引用 \cref
-
-% TikZ 流程图（按需启用，编译较慢可注释掉）
-\usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
-
-% ============================ 2. 字体设置 ====================================
-\usepackage{newtxtext}               % 正文英文 Times 风格
-\usepackage{newtxmath}               % 数学公式 Times 风格
-% 中文：ctexart 默认宋体；如需修改：
-% \setCJKmainfont{SimSun}[BoldFont=SimHei, ItalicFont=KaiTi]
-
-% ============================ 3. 超链接设置 ==================================
-\hypersetup{
-    colorlinks=true,
-    linkcolor=black,                 % 目录/公式引用
-    citecolor=black,                 % 文献引用
-    urlcolor=blue,                   % URL
-    bookmarksopen=true,
-    pdftitle={【替换】论文标题},
-    pdfauthor={【替换】参赛队}
-}
-
-% ============================ 4. 代码块设置 ==================================
-\lstset{
-    language=Python,                 % 按需改为 MATLAB / R / Julia
-    basicstyle=\small\ttfamily,
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red!70!black},
-    numbers=left,
-    numberstyle=\tiny\color{gray},
-    frame=single,
-    breaklines=true,                 % 自动换行防溢出
-    tabsize=4,
-    showstringspaces=false,
-    literate={_}{{\_}}1,             % 【核心修复】：下划线报错
-    captionpos=b                     % 代码标题在下方
-}
-
-% ============================ 5. 章节标题格式 ================================
-\ctexset{
-    section/name={,},
-    section/number=\chinese{section}、,           % 一、二、三、
-    section/format=\large\bfseries\centering,      % 一级居中加粗
-    subsection/number=\arabic{subsection},         % 1 2 3
-    subsection/format=\bfseries,                   % 二级加粗
-    subsubsection/number=\arabic{subsection}.\arabic{subsubsection},
-    subsubsection/format=\itshape                  % 三级斜体
-}
-
-% ============================ 6. 正文排版间距 ================================
-\renewcommand{\baselinestretch}{1.5}   % 1.5 倍行距
-\setlength{\parskip}{0.5em}            % 段间距
-\setlength{\parindent}{2em}            % 首行缩进 2 字符
-
-% 图表标题居中
-\captionsetup{justification=centering}
-\captionsetup[table]{position=above}   % 表题在上
-\captionsetup[figure]{position=below}  % 图题在下
-
-% 列表紧凑化
-\setlist{nosep, leftmargin=2em}
-
-% ============================ 7. 页眉页脚 ====================================
-\pagestyle{fancy}
-\fancyhf{}                              % 清空默认
-\fancyfoot[C]{\thepage}                 % 页脚居中显示页码
-\renewcommand{\headrulewidth}{0pt}      % 不画页眉横线
-
-% ============================ 8. 自定义命令 ==================================
-% 摘要页命令：\abstractpage{标题}{摘要正文}
-\newcommand{\abstractpage}[2]{%
-    \thispagestyle{plain}%
-    \pagenumbering{arabic}%
-    \setcounter{page}{1}%
-    \begin{center}
-        {\bfseries\zihao{3} #1}%
-    \end{center}
-    \vspace{0.5em}
-    \begin{center}
-        {\bfseries\zihao{4} 摘\quad 要}%
-    \end{center}
-    \vspace{0.5em}
-    #2%
-    \vspace{1em}
-    \par\noindent\textbf{关键词}：【替换】关键词1；关键词2；关键词3；关键词4；关键词5
-    \newpage
-}
-
-% 结果数字加粗便捷命令
-\newcommand{\res}[1]{\textbf{#1}}
-
-% ============================ 9. 定理环境（可选）=============================
-\newtheorem{definition}{定义}[section]
-\newtheorem{theorem}{定理}[section]
-\newtheorem{lemma}{引理}[section]
-
-% =============================================================================
-\begin{document}
-
-% ============================ 摘要页（六段法）=================================
-% 六段式结构：第1段背景+总方法 / 第2段Q1 / 第3段Q2 / 第4段Q3 / 第5段Q4 / 第6段总结
-% 硬性要求：①每段开头"针对..."领起 ②第2-5段每段至少一个加粗数字结果 ③方法名必须出现
-% 总字数控制 600-900 字，不超过一页。详见 ../01_通用写作规范/摘要六段法通用规范.md
-\abstractpage{基于【替换核心方法】与【替换辅助方法】的【替换研究对象】【替换问题类型】模型}%
-{%
-% ---- 第 1 段：背景 + 总方法 ----
-\textbf{针对【替换研究背景】中【替换核心难点 1】、【替换核心难点 2】等问题，本文建立了以【替换核心模型】为核心、融合【替换辅助方法 1】与【替换辅助方法 2】的【替换框架类型】框架。}
-
-% ---- 第 2 段：问题一（基础模型）----
-\textbf{针对问题一}，【替换简述方法】，构建了以【替换目标】为目标的【替换模型类型】模型，包含【替换约束 1】、【替换约束 2】和【替换约束 3】三类约束。调用【替换求解器】求解得到【替换时间范围】最优【替换指标】为\res{【替换具体数字】}。
-
-% ---- 第 3 段：问题二（引入新约束）----
-\textbf{针对问题二}，【替换新增约束】，修正了【替换关键方程】。重新求解后，得到【替换指标】为\res{【替换具体数字】}，较问题一\res{【替换上升/下降】}\res{【替换百分比】}\%。
-
-% ---- 第 4 段：问题三（大规模/扩展）----
-\textbf{针对问题三}，针对【替换规模特征】，设计了\res{【替换双层/分层】}框架：外层【替换方法】搜索【替换决策变量】，内层【替换方法】计算【替换目标】。求得\res{【替换结果】}为\res{【替换具体数字】}。
-
-% ---- 第 5 段：问题四（随机性/鲁棒）----
-\textbf{针对问题四}，引入【替换预测模型】对【替换数据】拟合（$\mu=$【替换均值】，$\sigma=$【替换标准差】），通过【替换 N】次蒙特卡洛模拟验证，\res{【替换指标】}满足【替换约束】。
-
-% ---- 第 6 段：总结（模型特色 + 推广价值）----
-\textbf{本文模型具有【替换普适性/扩展性】，对【替换实际场景】具有指导意义。}
-}
-
-% ============================ 目录（可选，按需启用）=========================
-% \tableofcontents
-% \newpage
-
-% ============================ 一、问题重述 ===================================
-\section{问题重述}
-
-本题要求为【替换研究对象】制定【替换目标】方案。【替换研究对象】具有【替换特征 1】、【替换特征 2】等复杂性。
-
-\textbf{已知条件}包括：
-\begin{enumerate}
-    \item 【替换已知条件 1】；
-    \item 【替换已知条件 2】；
-    \item 【替换已知条件 3】。
-\end{enumerate}
-
-\textbf{核心任务}是在满足【替换约束】的条件下，建立【替换模型类型】，求解使【替换目标】最优的【替换方案】。具体分为【替换 N】个递进问题：
-\begin{itemize}
-    \item \textbf{问题一}：要求【替换基础任务】；
-    \item \textbf{问题二}：引入【替换新约束】；
-    \item \textbf{问题三}：扩展至【替换更大规模】；
-    \item \textbf{问题四}：引入【替换随机性】。
-\end{itemize}
-
-% ============================ 二、问题分析 ===================================
-\section{问题分析}
-
-\subsection{问题一分析}
-
-\textbf{问题特征}：【替换 2~3 句难点描述，如"多级 BOM 耦合""非线性瓶颈""随机需求"】。
-
-\textbf{模型选择依据}：鉴于本问题的【替换线性/非线性】特征，且目标函数【替换性质】，本文采用【替换方法】作为求解方法。【替换方法】可精确描述【替换决策变量含义】，这是【替换其他方法】无法实现的\cite{1}。
-
-\subsection{问题二分析}
-
-\textbf{问题特征}：【替换新增约束的难点】。
-
-\textbf{模型选择依据}：考虑到本问题【替换场景特征】，本文采用\textbf{【替换方法】}。相比【替换对比方法】，【替换所选方法】具有【替换优势 1】、【替换优势 2】、【替换优势 3】三大优势。
-
-\subsection{问题三分析}
-
-\textbf{问题特征}：【替换规模扩展与新增复杂度的描述】。
-
-\textbf{模型选择依据}：针对本问题大规模维度与【替换搜索空间】的双重复杂性，若采用单一【替换方法】求解，【替换困难】。因此本文采用降维分解策略，设计了\textbf{【替换双层/分层】框架}：外层【替换方法】在【替换决策空间】进行全局搜索\cite{2}，内层【替换方法】计算【替换目标】。
-
-\subsection{问题四分析}
-
-\textbf{问题特征}：【替换随机性描述，如"需求服从正态分布""概率交付率约束"】。
-
-\textbf{模型选择依据}：针对本问题的随机性特征，本文采用"【替换预测】+\textbf{【替换量化】}+【替换验证】"的三步法。
-
+本研究关注三个相互衔接的层次。第一层次是确定性几何判断，即附件给出的三组介质 A 端点坐标是否已经形成跨越 $X$ 方向的路径。第二层次是随机填充下的概率规律，即给定 A 的体积分数后，重复随机生成微构体并统计导通比例。第三层次是工程设计，即在导通概率达到 90\% 的前提下，寻找最小单一填充量或最低混合成本。
+\subsection{四个子问题}
+问题一要求读取附件三个分表，依据圆柱端点坐标恢复每根 A 的轴线，判断三组微构体是否导通。问题二要求只填充 A，研究四个指定体积分数的导通概率。问题三要求在概率不低于 90\% 的约束下寻找 A 的最低体积分数。问题四同时考虑 A 与 B，并把 A、B 的单位体积成本纳入目标函数。
+\begin{table}[H]\centering\caption{题目输入、输出与评价指标}\begin{tabular}{p{2.5cm}p{4.2cm}p{4.2cm}p{3cm}}\toprule 子问题&主要输入&主要输出&评价指标\\\midrule 问题一&三组端点坐标&导通/不导通、路径&连通性\\问题二&A体积分数&概率估计、区间&概率与抽样误差\\问题三&A数量搜索&最低体积分数&概率阈值\\问题四&A/B数量、成本&混合方案&成本与概率\\\bottomrule\end{tabular}\end{table}
 \subsection{研究技术路线}
-
-本文的研究技术路线如下：首先【替换步骤 1】；其次【替换步骤 2】；再次【替换步骤 3】；最后【替换步骤 4】。
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig1_framework.png}
-    \caption{研究技术路线流程图}
-    \label{fig:framework}
-    \begin{center}
-        \footnotesize 【替换】本图展示了论文的整体研究思路：从问题重述与特征分析出发，针对四个递进问题分别采用不同的建模方法，最终通过灵敏度分析和模型验证确保结果稳健性。
-    \end{center}
-\end{figure}
-
-% ============================ 三、模型假设 ===================================
-\section{模型假设}
-
-为了简化模型并聚焦于核心问题，我们做出以下合理假设：
-\begin{enumerate}
-    \item 假设【替换假设 1，如"生产准备费用按批次计费，与生产数量无关"】；
-    \item 假设【替换假设 2，如"子组件生产不占用瓶颈设备工时"】；
-    \item 假设【替换假设 3，如"检修日当天完全停工"】；
-    \item 假设【替换假设 4，如"未来需求服从正态分布"】；
-    \item 假设【替换假设 5，如"物料消耗系数在整个周期内保持不变"】。
-\end{enumerate}
-
-% ============================ 四、符号说明 ===================================
-\section{符号说明}
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.4}
-    \caption{主要符号及其含义}
-    \label{tab:symbols}
-    \begin{tabular}{cll}
-        \toprule
-        符号 & 意义说明 & 单位 \\
-        \midrule
-        $i$ & 【替换】组件项目编号 & — \\
-        $t$ & 【替换】天数或周数索引 & 天/周 \\
-        $D_{i,t}$ & 第 $t$ 天组件 $i$ 的外部需求 & 件 \\
-        $x_{i,t}$ & 决策变量，第 $t$ 天组件 $i$ 的生产数量 & 件 \\
-        $y_{i,t}$ & 0-1 变量，第 $t$ 天是否生产组件 $i$ & — \\
-        $z_{i,t}$ & 决策变量，第 $t$ 天结束时组件 $i$ 的库存数量 & 件 \\
-        $S_i$ & 组件 $i$ 的单次生产准备费用 & 元/次 \\
-        $H_i$ & 组件 $i$ 的单件每日库存持有费用 & 元/(件·天) \\
-        $C_t$ & 第 $t$ 天的瓶颈设备总工时上限 & 工时 \\
-        $M$ & 充分大正数（用于大 M 法） & — \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-% ============================ 五、模型的建立与求解 ===========================
-\section{模型的建立与求解}
-
-\subsection{问题一：基础模型}
-
-\subsubsection{目标函数}
-
-以【替换时间范围】内总成本最小为目标，总成本由【替换分量 1】和【替换分量 2】构成：
-\begin{equation}
-    \min F = \sum_{i \in N} \sum_{t=1}^{T} \left( H_i \cdot z_{i,t} + S_i \cdot y_{i,t} \right)
-    \label{eq:obj1}
-\end{equation}
-其中第一项为【替换含义 1】，第二项为【替换含义 2】。
-
-\subsubsection{约束条件}
-
-\textbf{（1）库存平衡约束：}
-\begin{equation}
-    z_{i,t} = z_{i,t-1} + x_{i,t} - D_{i,t} - \sum_{j \in P_i} R_{i,j} \cdot x_{j,t}, \quad \forall i,\; t=1,\ldots,T
-    \label{eq:inv1}
-\end{equation}
-其中 $P_i$ 为【替换集合含义】。该约束表明：【替换文字解释】。
-
-\textbf{（2）产能上限约束：}
-\begin{equation}
-    \sum_{i \in \mathcal{B}} A_i \cdot x_{i,t} \leq C_t, \quad \forall t=1,\ldots,T
-    \label{eq:cap1}
-\end{equation}
-其中 $\mathcal{B}$ 为【替换集合】，【替换说明】。
-
-\textbf{（3）生产状态逻辑约束（大 M 法）：}
-\begin{equation}
-    x_{i,t} \leq M \cdot y_{i,t}, \quad \forall i,\; t=1,\ldots,T
-    \label{eq:logic1}
-\end{equation}
-当 $y_{i,t}=0$ 时强制 $x_{i,t}=0$；当 $y_{i,t}=1$ 时 $x_{i,t}$ 可取任意非负值。
-
-\textbf{（4）初始与终止约束：}
-\begin{equation}
-    z_{i,0} = 0, \quad z_{i,T} = 0, \quad \forall i
-    \label{eq:bound1}
-\end{equation}
-
-\subsubsection{模型求解算法}
-
-采用【替换求解器，如 Gurobi/CBC】求解器直接求解上述混合整数线性规划模型。算法步骤如下：
-\begin{enumerate}
-    \item 【替换步骤 1，如"构建 BOM 消耗矩阵 $R$"】；
-    \item 【替换步骤 2，如"定义决策变量并设置边界"】；
-    \item 【替换步骤 3，如"构建目标函数与约束，封装为优化问题"】；
-    \item 设置求解器参数（最大运行时间【替换】秒，MIPGap 为 $10^{-4}$），启动求解；
-    \item 输出最优【替换方案】表和【替换辅助表】。
-\end{enumerate}
-
-\subsubsection{求解结果}
-
-将题目给定数据代入模型，求解得到最优方案。求解结果显示，问题一的最优【替换指标】为\res{【替换具体数字】}，其中【替换分量 1】=\res{【替换值】}，【替换分量 2】=\res{【替换值】}。
-
-最优生产计划如图\ref{fig:gantt}所示。
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig2_gantt.png}
-    \caption{【替换】最优生产计划甘特图}
-    \label{fig:gantt}
-    \begin{center}
-        \footnotesize 【替换】本图是问题一模型求得的最优排程可视化结果。横轴为【替换】，纵轴为【替换】，色块表示该日安排生产。
-    \end{center}
-\end{figure}
-
-\subsection{问题二：引入【替换新约束】的模型}
-
-\subsubsection{【替换新约束】的修正}
-
-【替换】问题二要求【替换新约束描述】。库存平衡约束修正为：
-\begin{equation}
-    z_{i,t} = z_{i,t-1} + x_{i,t-1} - D_{i,t} - \sum_{j \in P_i} R_{i,j} \cdot x_{j,t}
-    \label{eq:inv2}
-\end{equation}
-上式中 $x_{i,t-1}$ 项体现了【替换机理说明】。
-
-\subsubsection{求解结果分析}
-
-求解结果显示，引入【替换新约束】后最优【替换指标】为\res{【替换具体数字】}，相比问题一的\res{【替换值】}\res{【替换上升/下降】}\res{【替换百分比】}\%。额外成本主要来自【替换原因 1】和【替换原因 2】。
-
-\subsection{问题三：【替换规模特征】的双层优化}
-
-\subsubsection{双层嵌套框架}
-
-针对本问题【替换规模描述】，设计"外层【替换方法】+内层【替换方法】"的双层嵌套框架：
-\begin{itemize}
-    \item \textbf{外层}：【替换方法】在【替换决策空间】全局搜索；
-    \item \textbf{内层}：将【替换总周期】按【替换切分点】切分为【替换 K】段独立求解；
-    \item \textbf{衔接}：前一段期末库存 = 后一段期初库存。
-\end{itemize}
-
-\subsubsection{求解结果}
-
-求得最优\res{【替换结果描述】}为\res{【替换具体数字】}，总【替换指标】为\res{【替换具体数字】}。
-
-\subsection{问题四：【替换随机性】的处理}
-
-\subsubsection{需求分布拟合}
-
-基于【替换历史数据】，利用【替换预测模型，如 ARIMA】拟合需求的均值 $\mu=$\res{【替换值】}和标准差 $\sigma=$\res{【替换值】}。
-
-\subsubsection{蒙特卡洛模拟验证}
-
-通过\res{【替换 N】}次蒙特卡洛模拟验证，当【替换决策变量】取\res{【替换值】}时，\res{【替换指标 1】}满足【替换约束 1】，\res{【替换指标 2】}满足【替换约束 2】。
-
-% ============================ 六、模型检验与敏感性分析 =======================
-\section{模型检验与敏感性分析}
-
-\subsection{灵敏度分析}
-
-为了进一步验证模型在参数扰动下的稳定性，我们对核心参数【替换 X】进行了灵敏度分析。结果如表\ref{tab:sensitivity}所示。
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.3}
-    \caption{核心参数【替换 X】的灵敏度分析结果}
-    \label{tab:sensitivity}
-    \begin{tabular}{cccc}
-        \toprule
-        参数变化 & 目标函数值 & 变化幅度 & 结论 \\
-        \midrule
-        $-20\%$ & \res{【替换值】} & 【替换】\% & 稳定 \\
-        $-10\%$ & \res{【替换值】} & 【替换】\% & 稳定 \\
-        $0$     & \res{【替换值】} & — & 基准 \\
-        $+10\%$ & \res{【替换值】} & 【替换】\% & 稳定 \\
-        $+20\%$ & \res{【替换值】} & 【替换】\% & 稳定 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-结果显示，当【替换 X】变化 $\pm 20\%$ 时，目标函数仅变化【替换百分比】，说明模型具有\res{【替换极强/较好】}的稳定性。
-
-\subsection{误差分析}
-
-对于【替换预测/拟合】类模型，计算得到拟合优度 $R^2=$\res{【替换值】}，残差平方和 SSE=\res{【替换值】}，均方根误差 RMSE=\res{【替换值】}。
-
-\subsection{稳定性评价}
-
-算法收敛曲线如图\ref{fig:convergence}所示，可见算法在【替换代数】代后收敛，结果可复现。
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{figures/fig3_convergence.png}
-    \caption{算法收敛曲线}
-    \label{fig:convergence}
-    \begin{center}
-        \footnotesize 【替换】本图展示了算法的收敛过程，横轴为迭代代数，纵轴为目标函数值。
-    \end{center}
-\end{figure}
-
-% ============================ 七、模型评价与推广 =============================
-\section{模型评价与推广}
-
-\subsection{模型优点}
-\begin{enumerate}
-    \item \textbf{普适性强}：模型可推广至【替换其他场景】；
-    \item \textbf{算法高效}：【替换方法】在【替换规模】下【替换秒级】求解；
-    \item \textbf{约束全面}：考虑了【替换约束 1】、【替换约束 2】等关键因素。
-\end{enumerate}
-
-\subsection{模型不足}
-\begin{enumerate}
-    \item 忽略了【替换因素】，可能导致【替换偏差方向】；
-    \item 部分参数（如【替换参数】）依赖【替换来源】，实际场景需重新标定。
-\end{enumerate}
-
-\subsection{模型推广}
-\begin{enumerate}
-    \item 可尝试用【替换方法 A】代替【替换方法 B】，以【替换改善方向】；
-    \item 可引入【替换更复杂约束/随机因素】，使模型更贴近实际。
-\end{enumerate}
-
-% ============================ AI 工具使用声明（2026 国赛新规）================
-% 位置：正文之后、参考文献之前
-% 二选一：未使用 AI / 已使用 AI
-% AIDC < 20% 可填报"未使用"
-\section*{AI 工具使用声明}
-\addcontentsline{toc}{section}{AI 工具使用声明}
-
-本队伍在本次竞赛中\textbf{【替换：未使用 / 使用了】} AI 工具。
-
-% ---- 若未使用 AI，删除以下内容 ----
-% ---- 若使用 AI，按实际填写以下内容 ----
-\begin{itemize}
-    \item \textbf{工具名称与版本}：【替换】如 ChatGPT-4 / Claude-3.5 / 文心一言 4.0
-    \item \textbf{使用场景}：【替换】语言润色 / 代码调试 / 模型思路梳理 / 数据整理
-    \item \textbf{典型交互实例}：（附 1~3 次核心交互记录，无需全部对话）
-    \item \textbf{人工修改与核验说明}：【替换】所有 AI 输出内容均经人工逐项核实、修正与优化，未直接照搬 AI 生成内容。
-\end{itemize}
-
+本文的技术路线如图~\ref{fig:workflow} 所示。首先对 PDF 题面和 Excel 附件进行数据审计；然后把边界规则转化为最小镜像距离；再构造连通图；最后以蒙特卡洛仿真和网格搜索完成概率、阈值与成本优化。每一阶段都保存中间数据，确保论文中的数字可以追溯到程序输出。
+\begin{figure}[H]\centering\includegraphics[width=0.98\textwidth]{../figures/fig_workflow.pdf}\caption{总体技术路线}\label{fig:workflow}\end{figure}
 \newpage
 
-% ============================ 八、参考文献 ===================================
-\section{参考文献}
+\section{数据审计与几何预处理}
+\subsection{附件结构}
+附件 Excel 包含三个工作表。每个工作表前两行为表头，之后每行对应一根介质 A，前三列是第一个端点坐标，后三列是另一个端点坐标。程序逐行读取数值并转换为浮点型数组，不对坐标进行人工平移，因此保留了题目给出的边界端点。
+\begin{table}[H]\centering\caption{附件工作表规模检查}\begin{tabular}{cccccc}\toprule 工作表&有效数据行&坐标列&最小坐标&最大坐标&异常值\\\midrule 组1&12&6&-5000&5000&无\\组2&49&6&-5000&5000&无\\组3&535&6&-5000&5000&无\\\bottomrule\end{tabular}\end{table}
+图~\ref{fig:q1_counts} 显示三组介质数量相差明显，第三组已经接近高密度网络，因而不能用同一个固定的邻接数量近似所有构型。
+\begin{figure}[H]\centering\includegraphics[width=.72\textwidth]{../figures/fig_q1_counts.pdf}\caption{附件三组介质 A 数量}\label{fig:q1_counts}\end{figure}
+\subsection{体积换算}
+圆柱 A 的体积为 $V_A=\pi r^2h$，球 B 的体积为 $V_B=4\pi R^3/3$。代入题面尺寸得到 $V_A=1.4137167\times 10^7\nm^3$、$V_B=3.3510322\times10^7\nm^3$。立方体体积为 $10^{12}\nm^3$，因此每个 A 约占 $0.0014137\%$，每个 B 约占 $0.0033510\%$。数量取整会造成不超过半个单体体积的舍入误差，远小于本文体积分数网格间隔。
+\begin{table}[H]\centering\caption{几何与物理参数}\begin{tabular}{llll}\toprule 参数&符号&数值&单位\\\midrule 立方体边长&$L$&10000&nm\\A半径&$r$&30&nm\\A高度&$h$&5000&nm\\B半径&$R$&200&nm\\导通间隙&$d_0$&1.8&nm\\A单体体积&$V_A$&$1.4137167\times10^7$&nm$^3$\\B单体体积&$V_B$&$3.3510322\times10^7$&nm$^3$\\\bottomrule\end{tabular}\end{table}
+\subsection{周期边界解释}
+题目的边界截断规则要求越界部分沿对应方向平移一个边长重新进入立方体。若把所有平移后的副本同时看作一个周期空间，则任意两个实体的真实最近距离就是所有整数平移副本距离的最小值。由于边长远大于介质半径，实际计算只需检查最近镜像，即对位移 $\Delta$ 使用
+\begin{equation}\Delta^*=\Delta-L\operatorname{round}(\Delta/L)。\end{equation}
+该处理同时适用于 A--A、A--B 和 B--B 的距离。
+\newpage
+
+\section{模型假设、符号与判定准则}
+\subsection{模型假设}
+为使题面规则可计算，作出以下假设：
+\begin{enumerate}[label=(\arabic*)]
+\item 介质位置在立方体内均匀独立生成，介质之间允许重叠；
+\item A 的轴向方向服从球面均匀分布，长度固定为 $h$，半径固定为 $r$；
+\item B 为理想球体，半径固定为 $R$，不考虑形变；
+\item 两个实体的最短表面间隙不超过 $d_0$ 即可导通，导通不随时间衰减；
+\item 左右带电面是理想电极，其余四面绝缘，仅用于周期边界回绕；
+\item 概率估计中的随机数流固定，以保证不同运行之间可比较。
+\end{enumerate}
+每条假设都对应一个可检验的替代方案。例如，将独立均匀位置改为排斥采样会降低局部团聚；将固定方向改为偏向 $X$ 轴会提高跨面概率。本文在局限性一节讨论这些扩展。
+\subsection{符号表}
+\begin{longtable}{p{2.2cm}p{7cm}p{3cm}}\caption{主要符号}\\\toprule 符号&含义&单位\\\midrule\endhead $L$&微构体边长&nm\\ $r,h$&A半径与高度&nm\\ $R$&B半径&nm\\ $d_0$&导通间隙阈值&nm\\ $S_i$&第$i$根A轴线线段&nm\\ $c_j$&第$j$个B球心&nm\\ $N_A,N_B$&A、B数量&个\\ $\phi_A,\phi_B$&A、B体积分数&\%\\ $I_k$&第$k$次试验的导通指示变量&0/1\\ $\hat p$&导通概率估计&无量纲\\ $C$&总填充成本&元\\\bottomrule\end{longtable}
+\subsection{图模型定义}
+令 $G=(V,E)$ 为无向图，节点集合包括所有介质节点和两个电极节点 $L_e,R_e$。若两个介质满足实体距离准则，则在 $E$ 中加入边；若介质与某电极面满足面距离准则，则加入介质--电极边。微构体导通当且仅当 $L_e$ 与 $R_e$ 在 $G$ 中连通。该定义把极化作用纳入图的传递闭包：一旦一个节点与带电分量相连，整个分量均视为带电。
+\newpage
+
+\section{问题一：附件构型的确定性判定}
+\subsection{轴线恢复}
+附件每行两个端点正好给出圆柱轴线与底面中心的交点。对于端点 $p_i,q_i$，轴向长度 $\|q_i-p_i\|$ 应接近题设高度 $h$。程序对所有行检查长度，并在距离计算中直接使用线段 $S_i=[p_i,q_i]$，避免用端点距离替代实体距离。
+\subsection{线段距离算法}
+两线段距离通过标准的最近点问题求解。设 $u=q_i-p_i$、$v=q_j-p_j$、$w=p_j-p_i$，令参数 $s,t\in[0,1]$ 表示两线段上的最近点。最小化 $\|w+tv-su\|^2$ 得到二元二次问题；先求内部解，再根据 $s,t$ 是否越界投影到端点。周期边界下对第二线段加入最近镜像平移。
+\subsection{判定结果}
+三组的结果列于表~\ref{tab:q1result}。三组均能从左电极到右电极，程序同时回溯 BFS 最短路径。图~\ref{fig:q1geometry} 是组1在 $X-Y$ 平面的端点投影，虚线为两个带电面。
+\begin{table}[H]\centering\caption{问题一确定性计算结果}\label{tab:q1result}\begin{tabular}{ccccc}\toprule 组别&A数量&左面连接节点&右面连接节点&导通\\\midrule 1&12&1&1&是\\2&49&1&1&是\\3&535&多节点&多节点&是\\\bottomrule\end{tabular}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.85\textwidth]{../figures/fig_q1_geometry.pdf}\caption{组1介质 A 的几何投影}\label{fig:q1geometry}\end{figure}
+\subsection{路径解释}
+组1和组2虽然介质数量较少，但存在少量几何上恰好接近两个电极的长圆柱，并通过一至两个中间节点完成跨越。组3的节点数更多，连通分量显著增大。该结果说明“总填充量”不是确定性导通的唯一指标，介质位置和取向同样关键。
+\newpage
+
+\section{问题二：A 单填充的蒙特卡洛模型}
+\subsection{随机构型生成}
+每次试验先生成中心 $z_i\sim U([-L/2,L/2]^3)$，再生成三维正态向量 $g_i$ 并归一化为单位方向 $u_i=g_i/\|g_i\|$。A 的两个端点为 $z_i\pm hu_i/2$。这种方法产生球面均匀方向，不会偏向任一坐标轴。
+\subsection{概率估计与置信区间}
+对固定数量 $N_A$ 重复 $M$ 次，记导通次数为 $K$，则 $\hat p=K/M$。与直接使用正态近似相比，Wilson 区间在 $K=0$ 或 $K=M$ 时更稳定，本文采用
+\begin{equation}\frac{\hat p+z^2/(2M)\pm z\sqrt{\hat p(1-\hat p)/M+z^2/(4M^2)}}{1+z^2/M},\quad z=1.96。
+\end{equation}
+\subsection{数值结果}
+表~\ref{tab:q2result} 汇总四个指定体积分数。图~\ref{fig:q2curve} 给出点估计曲线，图~\ref{fig:q2ci} 给出置信区间。结果呈现明显的上升趋势，但 20 次试验导致区间较宽，因此不能把 $0.90$ 点估计直接解释为 90\% 的置信保证。
+\begin{table}[H]\centering\caption{问题二概率结果}\label{tab:q2result}\begin{tabular}{ccccc}\toprule $\phi_A$&$N_A$&$K/M$&$\hat p$&Wilson区间\\\midrule 0.50\%&354&16/20&0.80&[0.584,0.919]\\0.60\%&424&18/20&0.90&[0.699,0.972]\\0.70\%&495&20/20&1.00&[0.839,1.000]\\1.00\%&707&20/20&1.00&[0.839,1.000]\\\bottomrule\end{tabular}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q2_curve.pdf}\caption{A体积分数与导通概率曲线}\label{fig:q2curve}\end{figure}
+\begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q2_ci.pdf}\caption{概率估计及 Wilson 95\% 区间}\label{fig:q2ci}\end{figure}
+\newpage
+
+\section{问题二的机制分析与误差讨论}
+\subsection{为何概率随体积分数上升}
+增加 $N_A$ 会同时增加电极附近节点数和介质间潜在邻接对数。虽然单个邻接事件仍依赖位置和方向，但网络平均度随数量增加，孤立分量更容易合并为跨面分量。因此导通概率一般呈现从低概率区快速上升、再逐渐饱和的渗流型曲线。
+\subsection{抽样误差}
+当 $M=20$ 时，即使观察到 $K=M$，Wilson 下界也只有 $0.839$。这不是模型失败，而是样本量不足造成的统计不确定性。若要将下界稳定推到 $0.90$ 附近，需要显著增加 $M$，并在阈值附近采用独立重复种子验证。
+\begin{table}[H]\centering\caption{不同成功次数下的 Wilson 区间示例（$M=20$）}\begin{tabular}{ccc}\toprule 成功次数&点估计&95\%区间\\\midrule 16&0.80&[0.584,0.919]\\18&0.90&[0.699,0.972]\\19&0.95&[0.764,0.998]\\20&1.00&[0.839,1.000]\\\bottomrule\end{tabular}\end{table}
+\subsection{重复性设计}
+程序将随机种子写入结果元数据，并使用不同的偏移种子对应不同体积分数。若正式实验采用 $M=1000$，可将每个体积分数分成若干批次并保存每批成功次数，从而检查是否存在随机数流或并行执行导致的偏差。
+\subsection{结果小结}
+在现有快速实验下，0.70\% 已表现为完全导通，0.50\% 仍有约五分之一未导通。工程上若追求较小材料用量，可以在 0.50\%--0.70\% 区间增加实验；若追求确定性裕量，选择 0.70\% 更稳健。
+\newpage
+
+\section{问题三：A 最低填充量}
+\subsection{阈值搜索策略}
+问题三是单调概率约束下的一维搜索。先在 $0.50\%$ 到 $3.00\%$ 之间进行粗网格扫描，再在第一次跨越 $0.90$ 的区间内二分。每个候选点使用固定的随机数流，使不同数量的比较尽量共享位置和方向样本，减少比较噪声。
+\subsection{粗网格结果}
+图~\ref{fig:q3scan} 展示已保存的阈值扫描结果。快速扫描中第一 个达到点估计 $0.90$ 的点为 $0.50\%$。由于该点 Wilson 下界为 $0.699$，本文将其表述为“快速仿真下的候选最低值”，而不是严格的统计保证。
+\begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q3_scan.pdf}\caption{问题三体积分数阈值扫描}\label{fig:q3scan}\end{figure}
+\begin{table}[H]\centering\caption{问题三阈值判定}\begin{tabular}{ccccc}\toprule 候选体积分数&A数量&成功次数&点估计&是否达到0.90\\\midrule 0.50\%&354&18/20&0.90&是（点估计）\\0.60\%&424&—&—&待复核\\0.70\%&495&—&—&待复核\\\bottomrule\end{tabular}\end{table}
+\subsection{二分算法伪代码}
+\begin{enumerate}\item 设下界 $l=0.005$、上界 $u=0.03$；\item 取中点 $m=(l+u)/2$ 并估计 $\hat p(m)$；\item 若 $\hat p(m)\ge0.90$，令 $u=m$，否则令 $l=m$；\item 当 $u-l$ 小于预设精度时停止。\end{enumerate}
+\subsection{工程解释}
+阈值附近的概率曲线斜率很大，体积分数每增加 0.1 个百分点可能带来明显概率提升。实际设计不应只看单次仿真的点估计，还应考虑置信下界、加工误差和介质尺寸误差。因此推荐把 0.50\% 作为研究候选，把 0.60\% 或 0.70\% 作为更保守的制造方案。
+\newpage
+
+\section{问题四：A/B 混合成本模型}
+\subsection{目标函数与约束}
+令 $N_A,N_B$ 为两种介质数量，目标函数为 $C(N_A,N_B)$。概率约束写为 $\hat p(N_A,N_B)\ge0.90$；若使用严格统计版本，则应改为 Wilson 下界 $p_L(N_A,N_B)\ge0.90$。本文快速初筛采用点估计，并在结果中单独报告区间。
+\subsection{网格设计}
+A 体积分数以 0.2 个百分点为步长，B 以 0.4 个百分点为步长。每个网格点先换算为整数数量，再运行 12 次快速试验。这样做的目的是快速识别低成本区域，而不是替代最终高样本复核。图~\ref{fig:q4cost} 显示成本与概率的关系，图~\ref{fig:q4map} 显示 A/B 体积分数平面上的概率分布。
+\begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q4_cost.pdf}\caption{混合方案成本与导通概率}\label{fig:q4cost}\end{figure}
+\begin{figure}[H]\centering\includegraphics[width=.78\textwidth]{../figures/fig_q4_map.pdf}\caption{A/B 体积分数与导通概率映射}\label{fig:q4map}\end{figure}
+\subsection{候选方案排序}
+\begin{table}[H]\centering\caption{问题四低成本候选}\begin{tabular}{cccccc}\toprule $\phi_A$&$\phi_B$&$N_A$&$N_B$&概率&成本/元\\\midrule 0.20\%&2.00\%&141&597&1.000&3.0933\\0.40\%&0.40\%&283&119&0.917&4.4002\\0.40\%&1.20\%&283&358&0.917&4.8007\\0.60\%&0.00\%&424&0&1.000&6.2939\\\bottomrule\end{tabular}\end{table}
+\subsection{成本结构分析}
+A 的单位体积价格是 B 的 21 倍，但 A 的长圆柱形状具有较强的跨空间连接能力；B 单体体积较大、价格低，能够以较低成本提供大量节点。最优方案并非简单地全部选择便宜的 B，而是利用少量 A 建立长程骨架，再用 B 增加局部连接机会。
+\newpage
+
+\section{算法实现与复杂度分析}
+\subsection{并查集实现}
+程序为每个介质分配一个整数编号，并将左右电极作为两个附加节点。发现满足距离阈值的对象对后调用 union 操作。所有对象扫描结束后，只需比较两个电极的根节点即可判断导通。对于导通构型，再以邻接表执行 BFS 回溯一条最短路径，用于问题一的解释性输出。
+\subsection{向量化距离计算}
+若直接对 $N$ 根圆柱做双重循环，复杂度为 $O(N^2)$。代码将上三角对象对一次性组织为 NumPy 数组，并行计算线段参数、最近点和距离，显著降低 Python 循环开销。A--B 和 B--B 同样采用成批位移和范数计算。
+\begin{table}[H]\centering\caption{程序模块与输出文件}\begin{tabular}{p{3.2cm}p{5cm}p{5cm}}\toprule 模块&功能&输出\\\midrule 数据读取&读取Excel三组坐标&数组与数量统计\\几何距离&周期线段、球面距离&邻接候选\\连通判定&并查集、BFS&导通标志与路径\\概率估计&随机生成与Wilson区间&q2、q3 JSON\\混合搜索&网格枚举与成本排序&q4 JSON\\绘图模块&生成论文图表&figures/*.pdf\\\bottomrule\end{tabular}\end{table}
+\subsection{可复现运行}
+\begin{verbatim}
+python code/solve_all.py --mode all --trials 20
+python code/make_figures.py
+\end{verbatim}
+运行后 `results/summary.json` 是论文数值的唯一汇总源，避免手工改写数字造成不一致。
+\newpage
+
+\section{灵敏度分析}
+\subsection{导通距离阈值}
+阈值 $d_0$ 直接决定图中的边数。增大 $d_0$ 会把原本接近但未接触的实体连接起来，概率曲线向左移动；减小 $d_0$ 则相反。正式实验可在 $1.5\nm$、$1.8\nm$、$2.1\nm$ 三点重复问题二和问题三，报告临界体积分数对阈值的响应。
+\begin{table}[H]\centering\caption{参数灵敏度实验设计}\begin{tabular}{ccccc}\toprule 参数&基准&低值&高值&观察量\\\midrule $d_0$&1.8 nm&1.5 nm&2.1 nm&临界体积分数\\ $M$&20&100&1000&区间宽度\\ $r$&30 nm&29 nm&31 nm&A概率\\ $R$&200 nm&198 nm&202 nm&B概率\\\bottomrule\end{tabular}\end{table}
+\subsection{尺寸误差}
+对 A 半径或 B 半径的微小扰动会同时改变实体间距和体积分数换算数量。半径增大通常增强连接，但也使单体体积变大、同一体积分数下数量减少，二者方向可能相反。因此应把“几何增强效应”和“数量减少效应”分开记录。
+\subsection{随机样本量}
+样本量对结论的影响可由二项分布方差 $p(1-p)/M$ 解释。在 $p=0.9$ 附近，$M=20$ 的标准误约为 0.067，$M=1000$ 时降至约 0.0095。由此可见，问题三和问题四必须在最终提交前扩大样本量。
+\newpage
+
+\section{模型验证与一致性检查}
+\subsection{几何检查}
+程序检查所有附件坐标均落在 $[-5000,5000]$ 或可由周期规则解释；检查每根 A 轴线长度接近 5000 nm；检查周期位移后最近镜像距离不超过 $L/2$。这些检查可防止把端点坐标、中心坐标和半径混淆。
+\subsection{图算法检查}
+并查集只负责连通性，BFS 只负责路径回溯。二者职责分离，避免通过路径算法中的访问顺序影响连通判定。对每个确定性构型，若并查集判定导通，BFS 必须能够回溯到两个电极；若不导通，则 BFS 不应产生完整路径。
+\subsection{数值一致性}
+\begin{table}[H]\centering\caption{论文数值与结果文件核对}\begin{tabular}{p{5cm}p{4cm}p{4cm}}\toprule 核对项&论文值&来源\\\midrule 组1数量与导通&12、是&summary.json\\ 0.50\%概率&0.80&q2\_probability.json\\ 0.70\%概率&1.00&q2\_probability.json\\ Q3候选阈值&0.50\%&q3\_threshold.json\\ Q4最低成本&3.0933元&q4\_mixture\_search.json\\\bottomrule\end{tabular}\end{table}
+\subsection{失败模式}
+若输入 Excel 表头增加空行，读取程序会跳过空值；若某行缺少六个坐标，程序应在正式版本中拒绝运行而不是静默补零；若系统缺少绘图库，论文编译仍可使用已生成的 PDF 图，但不应重新生成图表。上述约束均写入项目报告。
+\newpage
+
+\section{结果讨论与工程含义}
+\subsection{确定性与随机性的差别}
+附件构型是固定坐标，因此“是否导通”是确定性命题；问题二至问题四的构型每次随机生成，因此只能谈概率。不能用附件三组的导通比例替代随机概率，也不能把一次随机构型当作普遍结论。
+\subsection{A 与 B 的互补作用}
+A 是高长径比介质，单根长度达到微构体边长的一半，容易连接远距离区域；B 的半径大、成本低，适合填补局部空隙。混合方案的价值在于同时利用长程骨架和低成本局部连接。成本最优点对两种价格和几何尺寸均敏感，应在制造约束确定后重新搜索。
+\subsection{概率阈值的使用建议}
+若实验目标是“平均意义上不低于 90\%”，可用点估计约束；若目标是“统计置信意义上不低于 90\%”，应使用 Wilson 下界约束。两者的材料用量可能不同，论文必须明确采用哪一种口径。本文主结果采用题面常规的点估计，并如实报告区间。
+\newpage
+
+\section{模型优点、不足与推广}
+\subsection{优点}
+模型以几何实体为基础，直接体现了题目给出的半径、高度和间隙阈值；周期边界处理与题面截断规则一致；图模型能够自然表达极化传递；并查集复杂度低，适合多次蒙特卡洛；结果文件和随机种子使计算可复现。
+\subsection{不足}
+独立均匀生成忽略了制备中的团聚、取向偏差和空间排斥；导通阈值被视为确定常数，未考虑界面电阻和接触角；球 B 与圆柱 A 的距离使用理想欧氏几何，未加入材料介电参数；快速实验样本量不足以提供高置信度 90\% 保证。
+\subsection{推广方向}
+可以把位置生成改为硬核点过程或含团聚的 Neyman--Scott 过程；把 $d_0$ 改为随机变量；把图边权设置为隧穿电阻并求最小电阻路径；在成本模型中加入加工上限、最大介质数量和混合均匀性约束；采用拉丁超立方或重要抽样提高阈值附近的估计效率。
+\newpage
+
+\section{结论}
+本文完成了微构体导电问题的统一几何建模和可复现实验。问题一中，附件三组构型分别含 12、49、535 根介质 A，均检测到从左带电面到右带电面的完整路径。问题二中，A 体积分数从 0.50\% 增加到 1.00\% 时，导通概率由 0.80 上升到 1.00，表明填充量是影响连通性的主要因素之一。问题三的快速扫描给出 0.50\% 的点估计候选阈值，但其置信下界不足，建议在提交前用更大样本量复核。问题四的快速混合搜索给出 A 0.20\%、B 2.00\% 的最低成本候选，成本约 3.0933 元；该方案体现了长圆柱骨架与低价球体的互补作用。
+
+\section*{参考文献}
 \begin{thebibliography}{99}
-    \bibitem{1} 姜启源, 谢金星, 叶俊. 数学模型(第五版)[M]. 北京: 高等教育出版社, 2018.
-    \bibitem{2} 全国大学生数学建模竞赛组委会. 【替换年份】年【替换赛题名】[Z]. 【替换年份】.
-    \bibitem{3} Holland J H. Adaptation in Natural and Artificial Systems[M]. MIT Press, 1992.
-    \bibitem{4} Box G E P, Jenkins G M. Time Series Analysis: Forecasting and Control[M]. Holden-Day, 1976.
-    \bibitem{5} 【替换】作者. 论文名[J]. 期刊名, 年份, 卷号(期号): 页码.
+\bibitem{mathmodel} 姜启源，谢金星，叶俊. 数学模型（第五版）[M]. 北京：高等教育出版社，2018.
+\bibitem{monte} Robert C, Casella G. Monte Carlo Statistical Methods[M]. Springer, 2004.
+\bibitem{graph} Bollobás B. Random Graphs[M]. Cambridge University Press, 2001.
+\bibitem{wilson} Wilson E B. Probable inference, the law of succession, and statistical inference[J]. Journal of the American Statistical Association, 1927.
+\bibitem{periodic} Allen M P, Tildesley D J. Computer Simulation of Liquids[M]. Oxford University Press, 2017.
 \end{thebibliography}
 
-% ============================ 附录 ===========================================
 \appendix
-
-\section*{附录 A：完整计算结果数据表}
-\addcontentsline{toc}{section}{附录 A：完整计算结果数据表}
-
-\begin{longtable}{cccccccc}
-    \caption{【替换】完整计算结果数据表} \label{tab:appendix_data} \\
-    \toprule
-    【替换列 1】 & 【替换列 2】 & 【替换列 3】 & 【替换列 4】 & 【替换列 5】 & 【替换列 6】 & 【替换列 7】 & 【替换列 8】 \\
-    \midrule
-    \endfirsthead
-    \multicolumn{8}{l}{\small 续表 \thetable} \\
-    \toprule
-    【替换列 1】 & 【替换列 2】 & 【替换列 3】 & 【替换列 4】 & 【替换列 5】 & 【替换列 6】 & 【替换列 7】 & 【替换列 8】 \\
-    \midrule
-    \endhead
-    \midrule
-    \multicolumn{8}{r}{\small 接下页} \\
-    \endfoot
-    \bottomrule
-    \endlastfoot
-    % 在此填入数据行
-    【替换】 & 【替换】 & 【替换】 & 【替换】 & 【替换】 & 【替换】 & 【替换】 & 【替换】 \\
-\end{longtable}
-
-\section*{附录 B：核心程序源代码}
-\addcontentsline{toc}{section}{附录 B：核心程序源代码}
-
-\begin{lstlisting}[caption={【替换】核心求解程序代码}, label={code:solver}]
-# -*- coding: utf-8 -*-
-"""
-【替换】模块名：核心求解器
-功能：【替换简述】
-作者：【替换】
-日期：【替换】
-"""
-import numpy as np
-import pulp  # 或 import gurobipy as gp
-
-def solve_model(data):
-    """
-    【替换】求解主函数
-    输入：data - 【替换数据描述】
-    输出：result - 【替换结果描述】
-    """
-    # 1. 数据预处理
-    # 【替换代码】
-
-    # 2. 构建模型
-    # model = pulp.LpProblem("MILP", pulp.LpMinimize)
-    # 【替换代码】
-
-    # 3. 定义决策变量
-    # x = pulp.LpVariable.dicts("x", (items, days), lowBound=0, cat='Integer')
-    # 【替换代码】
-
-    # 4. 目标函数与约束
-    # 【替换代码】
-
-    # 5. 求解
-    # model.solve(pulp.PULP_CBC_CMD(msg=0, timeLimit=120))
-
-    # 6. 输出结果
-    # result = {...}
-    # return result
-    pass
-
-if __name__ == "__main__":
-    data = {}  # 【替换】载入数据
-    result = solve_model(data)
-    print(result)
-\end{lstlisting}
-
+\section{核心算法伪代码}
+\begin{verbatim}
+读取三组端点坐标
+for 每个随机试验:
+    生成介质中心与方向
+    计算所有对象对的最小镜像距离
+    距离 <= 1.8 nm 时 union(对象i,对象j)
+    与左右面距离满足阈值时连接电极节点
+    判断两个电极根节点是否相同
+统计成功次数、Wilson区间并保存JSON
+\end{verbatim}
+\section{结果文件说明}
+\begin{table}[H]\centering\caption{提交目录中的主要文件}\begin{tabular}{p{5cm}p{8cm}}\toprule 文件&用途\\\midrule code/solve\_all.py&主求解程序\\ code/make\_figures.py&论文图表生成程序\\ results/summary.json&数值汇总\\ results/q2\_probability.json&问题二结果\\ results/q3\_threshold.json&问题三扫描结果\\ results/q4\_mixture\_search.json&问题四候选结果\\ figures/*.pdf&论文图表\\ reports/VERIFY\_REPORT.md&验收记录\\\bottomrule\end{tabular}\end{table}
+\section{AI工具使用声明}
+本项目使用 AI 工具辅助代码组织、文字表达和格式检查。题面读取、模型假设、计算参数、程序运行和结果核对均保留在项目文件中，论文中的关键数字均可由结果 JSON 和求解脚本复现。
 \end{document}

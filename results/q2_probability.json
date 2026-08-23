@@ -1,0 +1,42 @@
+[
+  {
+    "fraction": 0.005,
+    "n_a": 354,
+    "n_b": 0,
+    "trials": 20,
+    "hits": 16,
+    "probability": 0.8,
+    "wilson95_low": 0.5839782779742401,
+    "wilson95_high": 0.9193436467288
+  },
+  {
+    "fraction": 0.006,
+    "n_a": 424,
+    "n_b": 0,
+    "trials": 20,
+    "hits": 18,
+    "probability": 0.9,
+    "wilson95_low": 0.6989617935882066,
+    "wilson95_high": 0.9721341060158468
+  },
+  {
+    "fraction": 0.007,
+    "n_a": 495,
+    "n_b": 0,
+    "trials": 20,
+    "hits": 20,
+    "probability": 1.0,
+    "wilson95_low": 0.8388698745050667,
+    "wilson95_high": 1.0
+  },
+  {
+    "fraction": 0.01,
+    "n_a": 707,
+    "n_b": 0,
+    "trials": 20,
+    "hits": 20,
+    "probability": 1.0,
+    "wilson95_low": 0.8388698745050667,
+    "wilson95_high": 1.0
+  }
+]

@@ -1,0 +1,262 @@
+[
+  {
+    "fraction": 0.005,
+    "n_a": 354,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 55,
+    "probability": 0.9166666666666666,
+    "wilson95_low": 0.8193083153188752,
+    "wilson95_high": 0.9638800759495141
+  },
+  {
+    "fraction": 0.006,
+    "n_a": 424,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 59,
+    "probability": 0.9833333333333333,
+    "wilson95_low": 0.9114466177322051,
+    "wilson95_high": 0.9970519161391262
+  },
+  {
+    "fraction": 0.007,
+    "n_a": 495,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 58,
+    "probability": 0.9666666666666667,
+    "wilson95_low": 0.8863601247107462,
+    "wilson95_high": 0.9908108735098498
+  },
+  {
+    "fraction": 0.008,
+    "n_a": 566,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.009000000000000001,
+    "n_a": 637,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.01,
+    "n_a": 707,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.011,
+    "n_a": 778,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.012,
+    "n_a": 849,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.013000000000000001,
+    "n_a": 920,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.014000000000000002,
+    "n_a": 990,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.015,
+    "n_a": 1061,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.016,
+    "n_a": 1132,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.017,
+    "n_a": 1203,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.018000000000000002,
+    "n_a": 1273,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.019,
+    "n_a": 1344,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.02,
+    "n_a": 1415,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.021,
+    "n_a": 1485,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.022000000000000002,
+    "n_a": 1556,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.023000000000000003,
+    "n_a": 1627,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.024,
+    "n_a": 1698,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.025,
+    "n_a": 1768,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.026000000000000002,
+    "n_a": 1839,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.027,
+    "n_a": 1910,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.028,
+    "n_a": 1981,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.029,
+    "n_a": 2051,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  },
+  {
+    "fraction": 0.03,
+    "n_a": 2122,
+    "n_b": 0,
+    "trials": 60,
+    "hits": 60,
+    "probability": 1.0,
+    "wilson95_low": 0.9398260695220669,
+    "wilson95_high": 0.9999999999999999
+  }
+]
