@@ -299,6 +299,34 @@ def estimate_q2_shared(fracs: list[float], trials: int, seed: int) -> list[dict]
     return out
 
 
+def estimate_q3_shared(fracs: list[float], trials: int, seed: int) -> list[dict]:
+    """Q3 scan with common random prefixes to preserve probability monotonicity."""
+    counts = [int(round(f * L**3 / VA)) for f in fracs]
+    max_n = max(counts)
+    hits = np.zeros(len(fracs), dtype=int)
+    rng = np.random.default_rng(seed)
+    for _ in range(trials):
+        rods = random_rods(max_n, rng)
+        for j, n in enumerate(counts):
+            ok, _ = build_graph(rods[:n])
+            hits[j] += int(ok)
+            if ok:
+                # Connectivity is monotone under adding rods; avoid rebuilding
+                # all higher-density prefixes for this random realization.
+                hits[j + 1:] += 1
+                break
+    out = []
+    for frac, n, k in zip(fracs, counts, hits):
+        p = float(k / trials)
+        lo, hi = wilson(int(k), trials)
+        out.append({"fraction": float(frac), "n_a": n, "n_b": 0,
+                    "trials": trials, "hits": int(k),
+                    "probability": p,
+                    "standard_error": float(np.sqrt(p * (1 - p) / trials)),
+                    "wilson95_low": lo, "wilson95_high": hi})
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["all", "q1", "q2", "q3", "q4"], default="all")
@@ -331,9 +359,8 @@ def main() -> None:
         plt.figure(figsize=(5.5, 3.5)); plt.plot(xs, ys, "o-"); plt.axhline(.9, ls="--", color="gray")
         plt.xlabel("A fraction (%)"); plt.ylabel("conductivity probability"); plt.tight_layout(); plt.savefig("figures/q2_probability.pdf"); plt.close()
     if args.mode in ("all", "q3"):
-        grid = np.arange(0.005, 0.03001, 0.001); q3 = []
-        for i, frac in enumerate(grid):
-            n = int(round(frac * L**3 / VA)); q3.append({"fraction": float(frac), **estimate(n, 0, args.trials, args.seed+100+i)})
+        grid = np.arange(0.005, 0.02001, 0.0005)
+        q3 = estimate_q3_shared([float(x) for x in grid], args.trials, args.seed + 100)
         feasible = [x for x in q3 if x["probability"] >= .9]
         summary["q3"] = feasible[0] if feasible else None
         (args.out / "q3_threshold.json").write_text(json.dumps(q3, ensure_ascii=False, indent=2), encoding="utf-8")
