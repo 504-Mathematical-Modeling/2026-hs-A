@@ -50,8 +50,8 @@
 - [ ] 成本最小化（A：1.05 元/μm³，B：0.05 元/μm³），约束导通概率 ≥ 90%
 - [ ] 混合填充优化，给出最优填充量与最低成本
 
-2026-08-23 update: solver fixed; Q2 300 trials/point, Q3 and Q4 rerun. Results: results/q2_probability.json, results/q3_threshold.json, results/q4_mixture_search.json. UTF-8 paper: 02_����/����.tex; compiled 25-page PDF: 02_����/����_new.pdf.
+2026-08-23 update: solver fixed; Q2 300 trials/point, Q3 and Q4 rerun. Results: results/q2_probability.json, results/q3_threshold.json, results/q4_mixture_search.json. UTF-8 paper: 02_论文/论文.tex; compiled 25-page PDF: 02_论文/论文_new.pdf.
 
-Q2 revised values adopted: 0.1067, 0.0967, 0.1867, 0.3567; paper rebuilt as 25-page 02_����/����_new.pdf.
+Q2 revised values adopted: 0.1067, 0.0967, 0.1867, 0.3567; paper rebuilt as 25-page 02_论文/论文_new.pdf.
 
 Six-condition solver update: strict capsule distance, finite box intersection, physical X electrodes, no XYZ wrap, common random prefixes, Q2 2000 trials/point completed.
