@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'figures'; OUT.mkdir(exist_ok=True)
-R = ROOT / 'results'
-plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'DejaVu Sans']
+OUT = ROOT / '02_论文' / 'figures'; OUT.mkdir(exist_ok=True)
+R = ROOT / '02_论文' / 'files'
+plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'Microsoft YaHei', 'SimHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 q2 = json.loads((R/'q2_probability.json').read_text(encoding='utf-8'))
@@ -34,11 +34,16 @@ plt.figure(figsize=(6,4)); plt.plot(x3,y3,'s-',color='#55a868'); plt.axhline(.9,
 
 # 5. Q4 cost-probability scatter
 c=np.array([d['cost'] for d in q4]); p=np.array([d['probability'] for d in q4]);
-plt.figure(figsize=(6,4)); plt.scatter(c,p,c=p,cmap='viridis',s=45); plt.axhline(.9,ls='--',color='gray'); plt.xlabel('总成本（元）'); plt.ylabel('导通概率'); plt.colorbar(label='概率'); save('fig_q4_cost.pdf')
+best_idx = min([i for i,d in enumerate(q4) if d['probability']>=0.90], key=lambda i: c[i])
+plt.figure(figsize=(6,4)); plt.scatter(c,p,c=p,cmap='viridis',s=45); plt.axhline(.9,ls='--',color='gray')
+plt.scatter([c[best_idx]],[p[best_idx]],marker='*',s=220,c='red',zorder=5,label='最低成本方案（p≥0.90）')
+plt.xlabel('总成本（元）'); plt.ylabel('导通概率'); plt.colorbar(label='概率'); plt.legend(loc='lower right',fontsize=9); save('fig_q4_cost.pdf')
 
 # 6. Q4 A/B fraction map for all candidates
 fa=np.array([d['fraction_a']*100 for d in q4]); fb=np.array([d['fraction_b']*100 for d in q4]);
-plt.figure(figsize=(6,4)); plt.scatter(fa,fb,c=p,cmap='RdYlGn',s=55,edgecolor='k',lw=.2); plt.xlabel('A体积分数 (%)'); plt.ylabel('B体积分数 (%)'); plt.colorbar(label='导通概率'); save('fig_q4_map.pdf')
+plt.figure(figsize=(6,4)); plt.scatter(fa,fb,c=p,cmap='RdYlGn',s=55,edgecolor='k',lw=.2)
+plt.scatter([fa[best_idx]],[fb[best_idx]],marker='*',s=220,c='red',zorder=5,label='最低成本方案（p≥0.90）')
+plt.xlabel('A 体积分数 (%)'); plt.ylabel('B 体积分数 (%)'); plt.colorbar(label='导通概率'); plt.legend(loc='upper right',fontsize=9); save('fig_q4_map.pdf')
 
 # 7. actual group 1 geometry projection
 import openpyxl

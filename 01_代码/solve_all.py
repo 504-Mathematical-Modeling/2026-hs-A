@@ -180,9 +180,9 @@ def build_graph(rods: np.ndarray, spheres: np.ndarray | None = None,
     for j, row in enumerate(spheres):
         c = row[:3]
         r = row[3]
-        if min(abs(c[0] + HALF), abs(c[0] + HALF - L), abs(c[0] + HALF + L)) - r <= d0:
+        if abs(c[0] + HALF) - r <= d0:
             link(na + j, left)
-        if min(abs(c[0] - HALF), abs(c[0] - HALF - L), abs(c[0] - HALF + L)) - r <= d0:
+        if abs(c[0] - HALF) - r <= d0:
             link(na + j, right)
 
     if len(pieces) > 1:
@@ -333,10 +333,10 @@ def main() -> None:
     ap.add_argument("--trials", type=int, default=120)
     ap.add_argument("--seed", type=int, default=20260823)
     ap.add_argument("--attachment", type=Path, default=next(Path(".").glob("00_*") ) / "附件.xlsx")
-    ap.add_argument("--out", type=Path, default=Path("results"))
+    ap.add_argument("--out", type=Path, default=Path("02_论文/files"))
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    (Path("figures")).mkdir(parents=True, exist_ok=True)
+    (Path("02_论文/figures")).mkdir(parents=True, exist_ok=True)
     groups = read_attachment(args.attachment)
     summary = {"constants": {"L_nm": L, "V_A_nm3": VA, "V_B_nm3": VB, "d0_nm": D0}}
 
@@ -357,7 +357,7 @@ def main() -> None:
         summary["q2"] = q2
         xs = np.array([x["fraction"]*100 for x in q2]); ys = np.array([x["probability"] for x in q2])
         plt.figure(figsize=(5.5, 3.5)); plt.plot(xs, ys, "o-"); plt.axhline(.9, ls="--", color="gray")
-        plt.xlabel("A fraction (%)"); plt.ylabel("conductivity probability"); plt.tight_layout(); plt.savefig("figures/q2_probability.pdf"); plt.close()
+        plt.xlabel("A fraction (%)"); plt.ylabel("conductivity probability"); plt.tight_layout();         plt.savefig("02_论文/figures/q2_probability.pdf"); plt.close()
     if args.mode in ("all", "q3"):
         grid = np.arange(0.005, 0.02001, 0.0005)
         q3 = estimate_q3_shared([float(x) for x in grid], args.trials, args.seed + 100)
