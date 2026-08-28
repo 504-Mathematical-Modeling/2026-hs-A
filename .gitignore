@@ -18,6 +18,10 @@ build/
 .DS_Store
 Thumbs.db
 
+# MiKTeX 本地配置
+.miktex-config/
+.miktex-data/
+
 # Python 缓存
 __pycache__/
 *.pyc

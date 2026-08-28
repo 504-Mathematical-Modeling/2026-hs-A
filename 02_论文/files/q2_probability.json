@@ -1,0 +1,123 @@
+[
+  {
+    "fraction": 0.005,
+    "n_a": 354,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 629,
+    "probability": 0.3145,
+    "standard_error": 0.010382431073693675,
+    "wilson95_low": 0.29452246585602654,
+    "wilson95_high": 0.33518878477376374
+  },
+  {
+    "fraction": 0.0055,
+    "n_a": 389,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 766,
+    "probability": 0.383,
+    "standard_error": 0.010869935602385139,
+    "wilson95_low": 0.36193847909601823,
+    "wilson95_high": 0.4045101264225018
+  },
+  {
+    "fraction": 0.006,
+    "n_a": 424,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 895,
+    "probability": 0.4475,
+    "standard_error": 0.011118537448783451,
+    "wilson95_low": 0.42582898188212964,
+    "wilson95_high": 0.46937231546592423
+  },
+  {
+    "fraction": 0.0065,
+    "n_a": 460,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1033,
+    "probability": 0.5165,
+    "standard_error": 0.011174250534152167,
+    "wilson95_low": 0.49458781762425436,
+    "wilson95_high": 0.5383489174949285
+  },
+  {
+    "fraction": 0.007,
+    "n_a": 495,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1165,
+    "probability": 0.5825,
+    "standard_error": 0.011027097306181713,
+    "wilson95_low": 0.5607488752003451,
+    "wilson95_high": 0.6039348003955702
+  },
+  {
+    "fraction": 0.0075,
+    "n_a": 531,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1272,
+    "probability": 0.636,
+    "standard_error": 0.010758810343155975,
+    "wilson95_low": 0.6146706134805525,
+    "wilson95_high": 0.6568079305321081
+  },
+  {
+    "fraction": 0.008,
+    "n_a": 566,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1386,
+    "probability": 0.693,
+    "standard_error": 0.010313849911647929,
+    "wilson95_low": 0.6724308480695134,
+    "wilson95_high": 0.7128291445366886
+  },
+  {
+    "fraction": 0.0085,
+    "n_a": 601,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1476,
+    "probability": 0.738,
+    "standard_error": 0.009832497139587684,
+    "wilson95_low": 0.7182851077657897,
+    "wilson95_high": 0.756802344256366
+  },
+  {
+    "fraction": 0.009,
+    "n_a": 637,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1579,
+    "probability": 0.7895,
+    "standard_error": 0.009115639034099584,
+    "wilson95_low": 0.7710868499288277,
+    "wilson95_high": 0.8068031389804753
+  },
+  {
+    "fraction": 0.0095,
+    "n_a": 672,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1680,
+    "probability": 0.84,
+    "standard_error": 0.00819756061276768,
+    "wilson95_low": 0.8232831411176247,
+    "wilson95_high": 0.8554132189140264
+  },
+  {
+    "fraction": 0.01,
+    "n_a": 707,
+    "n_b": 0,
+    "trials": 2000,
+    "hits": 1746,
+    "probability": 0.873,
+    "standard_error": 0.007445501997850783,
+    "wilson95_low": 0.8576882000302117,
+    "wilson95_high": 0.8868816302398057
+  }
+]
